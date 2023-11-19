@@ -7,6 +7,7 @@ Created on Sun Nov 19 07:46:27 2023
 
 import tkinter as tk
 import customtkinter as ctk
+from Database import Database
 
 class UI:
     
@@ -57,14 +58,8 @@ class Tab_UI:
         self.edit_button = ctk.CTkButton(self.menu_frame, text="Edit")#, command=button_event)
         self.outflow_button = ctk.CTkButton(self.menu_frame, text="Outflow")#, command=button_event)
         
-        self.database = tk.ttk.Treeview(self.table_frame)
-        self.database.place(relheight=1, relwidth=1)
-
-        self.scrolly = tk.Scrollbar(self.table_frame, orient="vertical", command=self.database.yview)
-        self.scrollx = tk.Scrollbar(self.table_frame, orient="horizontal", command=self.database.xview)
-        self.database.configure(xscrollcommand=self.scrollx.set, yscrollcommand=self.scrolly.set)
-        self.scrollx.pack(side="bottom", fill="x") 
-        self.scrolly.pack(side="right", fill="y") 
+        self.table = Database(self.table_frame)
+        
         
         
     def setup_tab_layout(self):
