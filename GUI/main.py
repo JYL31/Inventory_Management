@@ -10,12 +10,12 @@ from UI import UI
 
 if __name__ == '__main__':
     
-    ctk.set_appearance_mode("Dark")
+    ctk.set_appearance_mode("Dark") #set GUI theme
     ctk.set_default_color_theme("blue")    
     
-    root = ctk.CTk()
+    root = ctk.CTk() #create GUI object
     root.title("ANMA Inventory Management System")
-    root.maxsize(1500,  1000)
+    root.geometry("1300x850+100+100")
     root.resizable(0, 0)
     
     app = UI(root)
