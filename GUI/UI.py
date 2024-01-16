@@ -12,27 +12,37 @@ from Buttons import add_data, outflow, search, clear, export, delete
 from functools import partial
 
 class UI:
-    
+    """Object of UI setup
+    """    
     def __init__(self, root):
+        """initialize UI object
+
+        Args:
+            root (tkinter object): root window
+        """        
         self.container = root
 
     def setup(self):
+        """function to setup GUI layout
+        """        
         self.create_widgets()
         self.setup_layout()
 
     def create_widgets(self):
-        self.search_frame = ctk.CTkFrame(self.container, width=1000, height=40)
+        """function to create tkinter widgets in GUI layout
+        """        
+        self.search_frame = ctk.CTkFrame(self.container, width=1000, height=40) # frames
         self.tap_frame = ctk.CTkFrame(self.container, width=1000, height=600)
         self.button_frame = ctk.CTkFrame(self.container, width=200, height=750)
         self.verbose_frame = ctk.CTkFrame(self.container, width=1200, height=40)
         
-        self.tab = ctk.CTkTabview(self.tap_frame, anchor="nw", border_width=10, corner_radius=15)
+        self.tab = ctk.CTkTabview(self.tap_frame, anchor="nw", border_width=10, corner_radius=15) # tabs for tables
         self.tab._segmented_button.configure(border_width=5, corner_radius=15, font=(None, 16, 'bold'))
         self.inventory_tab = self.tab.add("Inventory")
         self.purchase_tab = self.tab.add("Purchase History")
         self.outflow_tab = self.tab.add("Outflow History")
         
-        self.verbose = ctk.CTkLabel(self.verbose_frame, text='', font=('None', 14, 'bold'))
+        self.verbose = ctk.CTkLabel(self.verbose_frame, text='', font=('None', 14, 'bold')) # label to display program status
         
         self.tab.pack()
         self.tab.pack_propagate(False)
@@ -47,7 +57,7 @@ class UI:
         self.purchase_table = self.purchase_tab_view.get_table()
         self.outflow_table = self.outflow_tab_view.get_table()
         
-        self.search_box = ctk.CTkEntry(self.search_frame, width=400, placeholder_text="Search")
+        self.search_box = ctk.CTkEntry(self.search_frame, width=400, placeholder_text="Search") # buttons, entries, etc
         
         search_args = [self.search_box, self.inventory_table, self.purchase_table, self.outflow_table, self.verbose]
         
@@ -67,6 +77,8 @@ class UI:
         self.title = ctk.CTkLabel(self.button_frame, text="ANMA Inventory Management", font=('None', 30, 'bold'), wraplength=200)
         
     def setup_layout(self):
+        """function to position tkinter widgets
+        """        
         self.search_frame.grid(row=0, column=1, padx=20, pady=10)
         self.tap_frame.grid(row=1, column=1, padx=20, pady=10)
         self.button_frame.grid(row=0, column=0, padx=20, pady=10, rowspan=2)
@@ -93,11 +105,23 @@ class UI:
         self.delete_button.grid(row=5, column=0, padx=5, pady=20)
 
 class Tab_UI:
-    
+    """Object for each tab
+    """    
     def __init__(self, tab):
+        """initialize a tab object
+
+        Args:
+            tab (tkinter tabview): tabview window
+        """        
         self.tab_container = tab
         
     def setup_tab(self, tab_name, verbose):
+        """function to setup tabview layout
+
+        Args:
+            tab_name (str): string to specifify which tab
+            verbose (tkinter label): label to display program status
+        """        
         self.create_tab_widgets()
         self.setup_tab_layout()
         
@@ -106,12 +130,21 @@ class Tab_UI:
         self.table = self.table_setup.get_table()
     
     def create_tab_widgets(self):
+        """function to create widgets in tabview
+        """        
         self.table_frame = ctk.CTkFrame(self.tab_container, width=900, height=600)
         
     def setup_tab_layout(self):
+        """function to position widgets in tabview
+        """        
         self.table_frame.pack()
         self.table_frame.pack_propagate(False)
     
     def get_table(self):
+        """function to return database object
+
+        Returns:
+            Database object: table to display database content
+        """        
         return self.table
         

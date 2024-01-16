@@ -15,8 +15,8 @@ if __name__ == '__main__':
     
     root = ctk.CTk() #create GUI object
     root.title("ANMA Inventory Management System")
-    root.geometry("1300x850+100+100")
-    root.resizable(0, 0)
+    root.geometry("1300x850+100+100") #set window size
+    root.resizable(0, 0) #window not resizable
     
     app = UI(root)
     app.setup()

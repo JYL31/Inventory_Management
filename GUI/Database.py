@@ -28,7 +28,7 @@ class Database:
         Args:
             event (tkinter event): event recorded by tkinter widget
         """
-        region = self.table.identify_region(event.x, event.y)
+        region = self.table.identify_region(event.x, event.y) # get the value in the selected cell
         if region != 'cell':
             return
         column = self.table.identify_column(event.x)
@@ -36,7 +36,8 @@ class Database:
         iid = self.table.focus()
         database_ID = self.table.item(iid).get('values')[0]
         selected = self.table.item(iid).get('values')[column]
-        column_box = self.table.bbox(iid, column)
+        
+        column_box = self.table.bbox(iid, column) # create an entry widget in the same position as the selected cell
         entry = tk.ttk.Entry(self.frame)
         entry.place(x=column_box[0], y=column_box[1], w=column_box[2], h=column_box[3])
         entry.editing_column_index = column
@@ -56,7 +57,7 @@ class Database:
             event (tkinter event): _description_
             ID (int): ID of item in database
         """        
-        value = event.widget.get()
+        value = event.widget.get() # get the value of the entry box, and its id in the table
         if value == '':
             db_value = None
         else:
@@ -64,7 +65,7 @@ class Database:
         iid = event.widget.editing_item_iid
         column = event.widget.editing_column_index
         
-        database = sql.connect("Inventory.db")
+        database = sql.connect("Inventory.db") # connect to the database and update value by matching IDs
         db_cursor = database.cursor()
         
         heading = self.table.heading(column).get('text')
@@ -101,7 +102,7 @@ class Database:
                 database.close()
                 return
         
-        new_values = self.table.item(iid).get('values')
+        new_values = self.table.item(iid).get('values') # update the value in the table
         new_values[column] = value
         self.table.item(iid, values=new_values)
         
@@ -128,7 +129,7 @@ class Database:
         self.frame = frame
         self.tab_name = tab_name
         
-        self.scrolly = tk.Scrollbar(frame, orient="vertical")
+        self.scrolly = tk.Scrollbar(frame, orient="vertical") # set up scrollbar
         self.scrollx = tk.Scrollbar(frame, orient="horizontal")
         self.scrollx.pack(side="bottom", fill="x") 
         self.scrolly.pack(side="right", fill="y")
@@ -138,7 +139,7 @@ class Database:
         
         self.table = tk.ttk.Treeview(frame, yscrollcommand=self.scrolly.set, xscrollcommand=self.scrollx.set, selectmode="browse")
         
-        self.table.bind("<Double-1>", self.on_double_click)
+        self.table.bind("<Double-1>", self.on_double_click) # bind event functions
         
         self.table.pack(fill='both', expand=True)
         self.table.pack_propagate(False)
@@ -150,7 +151,7 @@ class Database:
         style.configure("Treeview.Heading", font=(None, 12, 'bold'))
         style.configure("Treeview", font=(None, 11))
         
-        if tab_name == "inv":
+        if tab_name == "inv": # set up table column names
             self.table['column'] = ["ID", "Name", "Specification", "Quantity", "Location", "Last Update"]
             self.table.column("#0", width=0, stretch=False)
             self.table.column("ID", anchor="center", width=50)
@@ -225,7 +226,7 @@ class Database:
         Args:
             tab_name (str): name to specify tabs corresponding to databases
         """        
-        if tab_name == "inv":
+        if tab_name == "inv": # get values from database
             self.db_cursor.execute("SELECT * FROM Inventory")
 
         elif tab_name == "pur":
@@ -237,7 +238,7 @@ class Database:
         data = self.db_cursor.fetchall()
         
         i=1
-        for record in data:
+        for record in data: # insert values from database to table
             record = [str(i or '') if i!=0 else str(i) for i in record]
             self.table.insert("", index="end", iid=i, values=record)
             i += 1
