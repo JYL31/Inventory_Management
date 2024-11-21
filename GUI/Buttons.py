@@ -363,6 +363,7 @@ def search(args):
     entry_value = entry.get()
     type_value = type.get()
     stock_value = stock.get()
+
     # fetch items in database that matches searched name/specification
     if type_value == 'All' and stock_value == 0:
         search_inv_sql = """SELECT * FROM Inventory
@@ -402,7 +403,7 @@ def search(args):
                         WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
         
         search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Type = '{}')
-                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value, entry_value)
     
     elif type_value != 'All' and stock_value == 1:
         search_inv_sql = """SELECT * FROM (SELECT * FROM Inventory WHERE Type = '{}' AND Quantity >= 1)
@@ -422,8 +423,8 @@ def search(args):
                         WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
         
         search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Type = '{}' AND Quantity < 1)
-                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value, entry_value)
-                        
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value, entry_value)                 
+    
     database = sql.connect("Inventory.db")
     db_cursor = database.cursor()
     
@@ -472,7 +473,7 @@ def clear(args):
     main_verbose = args[-1]
     
     entry.delete(0, 'end')
-    entry.insert(0, 'Name / Specification / Usage')
+    entry.insert(0, '')
     
     radio1 = args[1]
     radio1.set('All')
