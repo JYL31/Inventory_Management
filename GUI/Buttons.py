@@ -35,35 +35,41 @@ def add_data(args):
         widgets = add_form.winfo_children() # get entry values
         raw = []
         for i in widgets:
-            if isinstance(i, ctk.CTkEntry):
+            if isinstance(i, ctk.CTkEntry) or isinstance(i, ctk.CTkOptionMenu):
                 raw.append(i.get())
         
         entries = [i if i != '' else None for i in raw] # error checking
-        if entries[0] == None or entries[3] == None:
+        if entries[0] == None or entries[5] == None:
             verbose_label.configure(text='Field with * cannot be null.')
             main_verbose.configure(text='Field with * cannot be null.', text_color='red')
             database.close()
             return
         try:
-            int(entries[3])
+            int(entries[5])
         except:
             verbose_label.configure(text='Quantity has to be an integer.')
             main_verbose.configure(text='Quantity has to be an integer.', text_color='red')
             database.close()
             return
         
-        if entries[4] != None:
+        if entries[2] == 'Select a Type':
+            verbose_label.configure(text='Type has not been selected.')
+            main_verbose.configure(text='Type has not been selected.', text_color='red')
+            database.close()
+            return
+        
+        if entries[6] != None:
             try:
-                float(entries[4])
+                float(entries[6])
             except:
                 verbose_label.configure(text='Unit Price has to be a number.')
                 main_verbose.configure(text='Unit Price has to be a number.', text_color='red')
                 database.close()
                 return
                 
-        if entries[5] != None:
+        if entries[7] != None:
             try:
-                float(entries[5])
+                float(entries[7])
             except:
                 verbose_label.configure(text='Shipping has to be a number.')
                 main_verbose.configure(text='Shipping has to be a number.', text_color='red')
@@ -73,17 +79,17 @@ def add_data(args):
         entries = [i if i != None else '' for i in entries]
         
         # sql statement to update database
-        insert_inv_sql = """INSERT INTO Inventory(Name, Specification, Quantity, "Last Update") 
-                        VALUES(?, ?, COALESCE((SELECT Quantity FROM Inventory WHERE Name=? AND Specification=?), 0) + ?, ?)
+        insert_inv_sql = """INSERT INTO Inventory(Name, Specification, Type, Usage, Quantity, "Last Update") 
+                        VALUES(?, ?, ?, ?, COALESCE((SELECT Quantity FROM Inventory WHERE Name=? AND Specification=?), 0) + ?, ?)
                         ON CONFLICT("Name", "Specification") DO UPDATE SET "Quantity" = excluded.Quantity, "Last Update" = ?
                         RETURNING *;"""
         
-        insert_order_sql = """INSERT INTO "Purchase History"(Name, Specification, Supplier, Quantity, "Unit Price", Shipping, "Total Price", "Received Date", "Applied By", "Responsible By") 
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        insert_order_sql = """INSERT INTO "Purchase History"(Name, Specification, Type, Usage, Supplier, Quantity, "Unit Price", Shipping, "Total Price", "Received Date", "Applied By", "Responsible By") 
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         RETURNING *;"""               
         
         today = date.today()
-        inv_data = [entries[0], entries[1], entries[0], entries[1], entries[3], str(today), str(today)]
+        inv_data = [entries[0], entries[1], entries[2], entries[3], entries[0], entries[1], entries[5], str(today), str(today)]
         raw_updated_data = db_cursor.execute(insert_inv_sql, inv_data)
         raw_updated_data = list(raw_updated_data)
         updated_data = [str(i or '') if i!=0 else str(i) for i in raw_updated_data[0]] # update table content after executing sql
@@ -97,16 +103,16 @@ def add_data(args):
         database.commit()
         
         order_data = entries
-        if entries[4] != '':
-            if entries[5] != '':
-                order_data.insert(6, float(entries[3])*float(entries[4])+float(entries[5]))
+        if entries[6] != '':
+            if entries[7] != '':
+                order_data.insert(8, float(entries[5])*float(entries[6])+float(entries[7]))
             else:
-                entries[5] = None
-                order_data.insert(6, float(entries[3])*float(entries[4]))
+                entries[7] = None
+                order_data.insert(8, float(entries[5])*float(entries[6]))
         else:
-            entries[4] = None
-            entries[5] = None
-            order_data.insert(6, None)
+            entries[6] = None
+            entries[7] = None
+            order_data.insert(8, None)
         raw_order_table_data = db_cursor.execute(insert_order_sql, order_data)
         raw_order_table_data = list(raw_order_table_data)
         order_table_data = [str(i or '') if i!=0 else str(i) for i in raw_order_table_data[0]] # update table content after executing sql
@@ -124,7 +130,7 @@ def add_data(args):
     # entry form to enter values for new item
     add_form = ctk.CTkToplevel(window)
     add_form.attributes('-topmost', True)
-    add_form.geometry("400x500+500+300")
+    add_form.geometry("320x500+500+300")
     add_form.resizable(0, 0)
     
     verbose_label = ctk.CTkLabel(add_form, text="", text_color='red')
@@ -139,44 +145,55 @@ def add_data(args):
     spec_label.grid(row=2, column=0, padx=5, pady=5)
     spec_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
     spec_entry.grid(row=2, column=1, padx=5, pady=5)
+    
+    type_label = ctk.CTkLabel(add_form, text="Type")
+    type_label.grid(row=3, column=0, padx=5, pady=5)
+    type_var = ctk.StringVar(value="Select a Type")
+    type_entry = ctk.CTkOptionMenu(add_form, width=200, values=["Bearing", "Consumables","Electronics","Lubricant","Miscellaneous","Pneumatics","Tools"], variable=type_var)
+    type_entry.grid(row=3, column=1, padx=5, pady=5)
+    
+    use_label = ctk.CTkLabel(add_form, text="Usage")
+    use_label.grid(row=4, column=0, padx=5, pady=5)
+    use_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
+    use_entry.grid(row=4, column=1, padx=5, pady=5)
         
     supplier_label = ctk.CTkLabel(add_form, text="Supplier")
-    supplier_label.grid(row=3, column=0, padx=5, pady=5)
+    supplier_label.grid(row=5, column=0, padx=5, pady=5)
     supplier_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    supplier_entry.grid(row=3, column=1, padx=5, pady=5)
+    supplier_entry.grid(row=5, column=1, padx=5, pady=5)
         
     num_label = ctk.CTkLabel(add_form, text="*Quantity")
-    num_label.grid(row=4, column=0, padx=5, pady=5)
+    num_label.grid(row=6, column=0, padx=5, pady=5)
     num_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    num_entry.grid(row=4, column=1, padx=5, pady=5)
+    num_entry.grid(row=6, column=1, padx=5, pady=5)
         
     unit_label = ctk.CTkLabel(add_form, text="Unit Price")
-    unit_label.grid(row=5, column=0, padx=5, pady=5)
+    unit_label.grid(row=7, column=0, padx=5, pady=5)
     unit_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    unit_entry.grid(row=5, column=1, padx=5, pady=5)
+    unit_entry.grid(row=7, column=1, padx=5, pady=5)
         
     ship_label = ctk.CTkLabel(add_form, text="Shipping")
-    ship_label.grid(row=6, column=0, padx=5, pady=5)
+    ship_label.grid(row=8, column=0, padx=5, pady=5)
     ship_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    ship_entry.grid(row=6, column=1, padx=5, pady=5)
+    ship_entry.grid(row=8, column=1, padx=5, pady=5)
         
     rec_label = ctk.CTkLabel(add_form, text="Received Date")
-    rec_label.grid(row=7, column=0, padx=5, pady=5)
+    rec_label.grid(row=9, column=0, padx=5, pady=5)
     rec_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    rec_entry.grid(row=7, column=1, padx=5, pady=5)
+    rec_entry.grid(row=9, column=1, padx=5, pady=5)
         
     applied_label = ctk.CTkLabel(add_form, text="Applied By")
-    applied_label.grid(row=8, column=0, padx=5, pady=5)
+    applied_label.grid(row=10, column=0, padx=5, pady=5)
     applied_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    applied_entry.grid(row=8, column=1, padx=5, pady=5)
+    applied_entry.grid(row=10, column=1, padx=5, pady=5)
         
     resp_label = ctk.CTkLabel(add_form, text="Responsible By")
-    resp_label.grid(row=9, column=0, padx=5, pady=5)
+    resp_label.grid(row=11, column=0, padx=5, pady=5)
     resp_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    resp_entry.grid(row=9, column=1, padx=5, pady=5)
+    resp_entry.grid(row=11, column=1, padx=5, pady=5)
         
     submit_button = ctk.CTkButton(add_form, text="Submit", command=submit)
-    submit_button.grid(row=10, column=1, padx=5, pady=5)
+    submit_button.grid(row=12, column=1, padx=5, pady=5)
     
     
 def outflow(args):
@@ -203,20 +220,26 @@ def outflow(args):
         widgets = add_form.winfo_children() # get entry values
         raw = []
         for i in widgets:
-            if isinstance(i, ctk.CTkEntry):
+            if isinstance(i, ctk.CTkEntry) or isinstance(i, ctk.CTkOptionMenu):
                 raw.append(i.get())
         
         entries = [i if i != '' else None for i in raw]
-        if entries[0] == None or entries[2] == None: # error checking
+        if entries[0] == None or entries[3] == None: # error checking
             verbose_label.configure(text='Field with * cannot be null.')
             main_verbose.configure(text='Field with * cannot be null.', text_color='red')
             database.close()
             return
         try:
-            int(entries[2])
+            int(entries[3])
         except:
             verbose_label.configure(text='Quantity has to be an integer.')
             main_verbose.configure(text='Quantity has to be an integer.', text_color='red')
+            database.close()
+            return
+        
+        if entries[2] == 'Select a Type':
+            verbose_label.configure(text='Type has not been selected.')
+            main_verbose.configure(text='Type has not been selected.', text_color='red')
             database.close()
             return
         
@@ -237,12 +260,12 @@ def outflow(args):
                         ON CONFLICT("Name", "Specification") DO UPDATE SET "Quantity" = excluded.Quantity, "Last Update" = ?
                         RETURNING *;"""
         
-        insert_out_sql = """INSERT INTO "Outflow History"(Name, Specification, Quantity, Description, Date) 
-                        VALUES(?, ?, ?, ?, ?)
+        insert_out_sql = """INSERT INTO "Outflow History"(Name, Specification, Type, Quantity, Description, Date) 
+                        VALUES(?, ?, ?, ?, ?, ?)
                         RETURNING *;"""               
         
         today = date.today()
-        inv_data = [entries[0], entries[1], entries[0], entries[1], int(entries[2]), str(today), str(today)]
+        inv_data = [entries[0], entries[1], entries[0], entries[1], int(entries[3]), str(today), str(today)]
         raw_updated_data = db_cursor.execute(insert_inv_sql, inv_data)
         raw_updated_data = list(raw_updated_data)
         updated_data = [str(i or '') if i!=0 else str(i) for i in raw_updated_data[0]] # update table content after executing sql
@@ -288,24 +311,30 @@ def outflow(args):
     spec_label.grid(row=2, column=0, padx=5, pady=5)
     spec_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
     spec_entry.grid(row=2, column=1, padx=5, pady=5)
+    
+    type_label = ctk.CTkLabel(add_form, text="Type")
+    type_label.grid(row=3, column=0, padx=5, pady=5)
+    type_var = ctk.StringVar(value="Select a Type")
+    type_entry = ctk.CTkOptionMenu(add_form, width=200, values=["Bearing", "Consumables","Electronics","Lubricant","Miscellaneous","Pneumatics","Tools"], variable=type_var)
+    type_entry.grid(row=3, column=1, padx=5, pady=5)
         
     num_label = ctk.CTkLabel(add_form, text="*Quantity")
-    num_label.grid(row=3, column=0, padx=5, pady=5)
+    num_label.grid(row=4, column=0, padx=5, pady=5)
     num_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    num_entry.grid(row=3, column=1, padx=5, pady=5)
+    num_entry.grid(row=4, column=1, padx=5, pady=5)
         
     des_label = ctk.CTkLabel(add_form, text="Description")
-    des_label.grid(row=4, column=0, padx=5, pady=5)
+    des_label.grid(row=5, column=0, padx=5, pady=5)
     des_entry = ctk.CTkEntry(add_form, width=200, height=200, placeholder_text="")
-    des_entry.grid(row=4, column=1, padx=5, pady=5)
+    des_entry.grid(row=5, column=1, padx=5, pady=5)
         
     date_label = ctk.CTkLabel(add_form, text="Date")
-    date_label.grid(row=5, column=0, padx=5, pady=5)
+    date_label.grid(row=6, column=0, padx=5, pady=5)
     date_entry = ctk.CTkEntry(add_form, width=200, placeholder_text="")
-    date_entry.grid(row=5, column=1, padx=5, pady=5)
+    date_entry.grid(row=6, column=1, padx=5, pady=5)
         
     submit_button = ctk.CTkButton(add_form, text="Submit", command=submit)
-    submit_button.grid(row=6, column=1, padx=5, pady=5)
+    submit_button.grid(row=7, column=1, padx=5, pady=5)
     
     
 def search(args):
@@ -320,26 +349,80 @@ def search(args):
             args[4] (tkinter label object)
     """    
     entry = args[0]
-    inventory_table = args[1]
-    purchase_table = args[2]
-    outflow_table = args[3]
-    main_verbose = args[-1]
+    type = args[1]
+    stock = args[2]
+    inventory_table = args[3]
+    purchase_table = args[4]
+    outflow_table = args[5]
+    main_verbose = args[6]
     
     inventory_table.delete(*inventory_table.get_children()) # clear table content
     purchase_table.delete(*purchase_table.get_children())
     outflow_table.delete(*outflow_table.get_children())
     
     entry_value = entry.get()
-    
+    type_value = type.get()
+    stock_value = stock.get()
     # fetch items in database that matches searched name/specification
-    search_inv_sql = """SELECT * FROM Inventory
-                    WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(entry_value, entry_value)
+    if type_value == 'All' and stock_value == 0:
+        search_inv_sql = """SELECT * FROM Inventory
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(entry_value, entry_value, entry_value)
+
+        search_pur_sql = """SELECT * FROM 'Purchase History'
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(entry_value, entry_value, entry_value)
+        
+        search_out_sql = """SELECT * FROM 'Outflow History' 
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(entry_value, entry_value)
     
-    search_pur_sql = """SELECT * FROM 'Purchase History'
-                    WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%'""".format(entry_value, entry_value)
+    elif type_value == 'All' and stock_value == 1:
+        search_inv_sql = """SELECT * FROM (SELECT * FROM Inventory WHERE Quantity >= 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(entry_value, entry_value, entry_value)
+
+        search_pur_sql = """SELECT * FROM (SELECT * FROM 'Purchase History' WHERE Quantity >= 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(entry_value, entry_value, entry_value)
+        
+        search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Quantity >= 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(entry_value, entry_value)                    
     
-    search_out_sql = """SELECT * FROM 'Outflow History' 
-                    WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(entry_value, entry_value)
+    elif type_value == 'All' and stock_value == 2:
+        search_inv_sql = """SELECT * FROM (SELECT * FROM Inventory WHERE Quantity < 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(entry_value, entry_value, entry_value)
+
+        search_pur_sql = """SELECT * FROM (SELECT * FROM 'Purchase History' WHERE Quantity < 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(entry_value, entry_value, entry_value)
+        
+        search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Quantity < 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(entry_value, entry_value) 
+    
+    elif type_value != 'All' and stock_value == 0:
+        search_inv_sql = """SELECT * FROM (SELECT * FROM Inventory WHERE Type = '{}')
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
+        
+        search_pur_sql = """SELECT * FROM (SELECT * FROM 'Purchase History' WHERE Type = '{}')
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
+        
+        search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Type = '{}')
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value)
+    
+    elif type_value != 'All' and stock_value == 1:
+        search_inv_sql = """SELECT * FROM (SELECT * FROM Inventory WHERE Type = '{}' AND Quantity >= 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
+        
+        search_pur_sql = """SELECT * FROM (SELECT * FROM 'Purchase History' WHERE Type = '{}' AND Quantity >= 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
+        
+        search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Type = '{}' AND Quantity >= 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value, entry_value)
+    
+    elif type_value != 'All' and stock_value == 2:
+        search_inv_sql = """SELECT * FROM (SELECT * FROM Inventory WHERE Type = '{}' AND Quantity < 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
+        
+        search_pur_sql = """SELECT * FROM (SELECT * FROM 'Purchase History' WHERE Type = '{}' AND Quantity < 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%' OR Usage Like '%{}%';""".format(type_value, entry_value, entry_value, entry_value)
+        
+        search_out_sql = """SELECT * FROM (SELECT * FROM 'Outflow History' WHERE Type = '{}' AND Quantity < 1)
+                        WHERE Name LIKE '%{}%' OR Specification LIKE '%{}%';""".format(type_value, entry_value, entry_value)
                         
     database = sql.connect("Inventory.db")
     db_cursor = database.cursor()
@@ -389,11 +472,16 @@ def clear(args):
     main_verbose = args[-1]
     
     entry.delete(0, 'end')
-    entry.insert(0, 'Name / Specification')
+    entry.insert(0, 'Name / Specification / Usage')
     
-    inventory_table = args[1]
-    purchase_table = args[2]
-    outflow_table = args[3]
+    radio1 = args[1]
+    radio1.set('All')
+    radio2 = args[2]
+    radio2.set(0)
+    
+    inventory_table = args[3]
+    purchase_table = args[4]
+    outflow_table = args[5]
     
     inventory_table.delete(*inventory_table.get_children()) # clear table content
     purchase_table.delete(*purchase_table.get_children())

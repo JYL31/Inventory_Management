@@ -31,12 +31,12 @@ class UI:
     def create_widgets(self):
         """function to create tkinter widgets in GUI layout
         """        
-        self.search_frame = ctk.CTkFrame(self.container, width=1000, height=40) # frames
-        self.tap_frame = ctk.CTkFrame(self.container, width=1000, height=600)
-        self.button_frame = ctk.CTkFrame(self.container, width=200, height=750)
-        self.verbose_frame = ctk.CTkFrame(self.container, width=1200, height=40)
+        self.search_frame = ctk.CTkFrame(self.container, width=1300, height=120) # frames
+        self.tap_frame = ctk.CTkFrame(self.container, width=1300, height=700)
+        self.button_frame = ctk.CTkFrame(self.container, width=170, height=800)
+        self.verbose_frame = ctk.CTkFrame(self.container, width=1400, height=40)
         
-        self.tab = ctk.CTkTabview(self.tap_frame, anchor="nw", border_width=10, corner_radius=15) # tabs for tables
+        self.tab = ctk.CTkTabview(self.tap_frame, anchor="nw", corner_radius=15) # tabs for tables
         self.tab._segmented_button.configure(border_width=5, corner_radius=15, font=(None, 16, 'bold'))
         self.inventory_tab = self.tab.add("Inventory")
         self.purchase_tab = self.tab.add("Purchase History")
@@ -59,7 +59,20 @@ class UI:
         
         self.search_box = ctk.CTkEntry(self.search_frame, width=400, placeholder_text="Search") # buttons, entries, etc
         
-        search_args = [self.search_box, self.inventory_table, self.purchase_table, self.outflow_table, self.verbose]
+        type_var = tk.StringVar(value='All')
+        self.radio1 = ctk.CTkRadioButton(self.search_frame, text="Bearing", variable=type_var, value='Bearing')
+        self.radio2 = ctk.CTkRadioButton(self.search_frame, text="Consumables", variable=type_var, value="Consumables")
+        self.radio3 = ctk.CTkRadioButton(self.search_frame, text="Electronics", variable=type_var, value="Electronics")
+        self.radio4 = ctk.CTkRadioButton(self.search_frame, text="Lubricant", variable=type_var, value="Lubricant")
+        self.radio5 = ctk.CTkRadioButton(self.search_frame, text="Miscellaneous", variable=type_var, value="Miscellaneous")
+        self.radio6 = ctk.CTkRadioButton(self.search_frame, text="Pneumatics", variable=type_var, value="Pneumatics")
+        self.radio7 = ctk.CTkRadioButton(self.search_frame, text="Tools", variable=type_var, value="Tools")
+        
+        stock_var = tk.IntVar(value=0)
+        self.radio8 = ctk.CTkRadioButton(self.search_frame, text="In Stock", variable=stock_var, value=1)
+        self.radio9 = ctk.CTkRadioButton(self.search_frame, text="Out of Stock", variable=stock_var, value=2)
+        
+        search_args = [self.search_box, type_var, stock_var, self.inventory_table, self.purchase_table, self.outflow_table, self.verbose]
         
         self.search_button = ctk.CTkButton(self.search_frame, text="Search",command=partial(search, search_args))
         
@@ -91,9 +104,18 @@ class UI:
         
         self.verbose.grid(row=0, column=0, padx=5, pady=5)
         
-        self.search_box.grid(row=0, column=0, padx=5, pady=5)
-        self.search_button.grid(row=0, column=1, padx=5, pady=5)
-        self.clear_button.grid(row=0, column=2, padx=5, pady=5)
+        self.search_box.grid(row=0, column=0, padx=5, pady=5, columnspan=3)
+        self.search_button.grid(row=0, column=3, padx=5, pady=5)
+        self.clear_button.grid(row=0, column=4, padx=5, pady=5)
+        self.radio1.grid(row=1, column=0, padx=10, pady=5)
+        self.radio2.grid(row=1, column=1, padx=10, pady=5)
+        self.radio3.grid(row=1, column=2, padx=10, pady=5)
+        self.radio4.grid(row=1, column=3, padx=10, pady=5)
+        self.radio5.grid(row=1, column=4, padx=10, pady=10)
+        self.radio6.grid(row=1, column=5, padx=10, pady=10)
+        self.radio7.grid(row=1, column=6, padx=10, pady=10)
+        self.radio8.grid(row=2, column=0, padx=10, pady=10)
+        self.radio9.grid(row=2, column=1, padx=10, pady=10)
         
         self.title.grid(row=0, column=0, padx=5, pady=5)
         
@@ -132,7 +154,7 @@ class Tab_UI:
     def create_tab_widgets(self):
         """function to create widgets in tabview
         """        
-        self.table_frame = ctk.CTkFrame(self.tab_container, width=900, height=600)
+        self.table_frame = ctk.CTkFrame(self.tab_container, width=1300, height=600)
         
     def setup_tab_layout(self):
         """function to position widgets in tabview

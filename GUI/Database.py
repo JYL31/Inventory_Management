@@ -152,11 +152,13 @@ class Database:
         style.configure("Treeview", font=(None, 11))
         
         if tab_name == "inv": # set up table column names
-            self.table['column'] = ["ID", "Name", "Specification", "Quantity", "Location", "Last Update"]
+            self.table['column'] = ["ID", "Name", "Specification", "Type", "Usage","Quantity", "Location", "Last Update"]
             self.table.column("#0", width=0, stretch=False)
             self.table.column("ID", anchor="center", width=50)
             self.table.column("Name", anchor="w", width=200)
             self.table.column("Specification", anchor="w", width=200)
+            self.table.column("Type", anchor="center", width=100)
+            self.table.column("Usage", anchor="w", width=200)
             self.table.column("Quantity", anchor="center", width=100)
             self.table.column("Location", anchor="w", width=150)
             self.table.column("Last Update", anchor="center", width=150)
@@ -165,17 +167,21 @@ class Database:
             self.table.heading("ID", text="ID", anchor="center")
             self.table.heading("Name", text="Name", anchor="center")
             self.table.heading("Specification", text="Specification", anchor="center")
+            self.table.heading("Type", text="Type", anchor="center")
+            self.table.heading("Usage", text="Usage", anchor="center")
             self.table.heading("Quantity", text="Quantity", anchor="center")
             self.table.heading("Location", text="Location", anchor="center")
             self.table.heading("Last Update", text="Last Update", anchor="center")
         
         elif tab_name == "pur":
-            self.table['column'] = ["ID", "Name", "Specification", "Supplier", "Quantity", "Unit Price", "Shipping", 
+            self.table['column'] = ["ID", "Name", "Specification", "Type", "Usage", "Supplier", "Quantity", "Unit Price", "Shipping", 
                                     "Total Price", "Received Date", "Applied By", "Responsible By"]
             self.table.column("#0", width=0, stretch=False)
             self.table.column("ID", anchor="center", width=50)
             self.table.column("Name", anchor="w", width=200)
             self.table.column("Specification", anchor="w", width=200)
+            self.table.column("Type", anchor="center", width=100)
+            self.table.column("Usage", anchor="w", width=200)
             self.table.column("Supplier", anchor="w", width=150)
             self.table.column("Quantity", anchor="center", width=100)
             self.table.column("Unit Price", anchor="center", width=100)
@@ -189,6 +195,8 @@ class Database:
             self.table.heading("ID", text="ID", anchor="center")
             self.table.heading("Name", text="Name", anchor="center")
             self.table.heading("Specification", text="Specification", anchor="center")
+            self.table.heading("Type", text="Type", anchor="center")
+            self.table.heading("Usage", text="Usage", anchor="center")
             self.table.heading("Supplier", text="Supplier", anchor="center")
             self.table.heading("Quantity", text="Quantity", anchor="center")
             self.table.heading("Unit Price", text="Unit Price", anchor="center")
@@ -199,11 +207,12 @@ class Database:
             self.table.heading("Responsible By", text="Responsible By", anchor="center")
             
         elif tab_name == "out":
-            self.table['column'] = ["ID", "Name", "Specification", "Quantity", "Description", "Date"]
+            self.table['column'] = ["ID", "Name", "Specification", "Type", "Quantity", "Description", "Date"]
             self.table.column("#0", width=0, stretch=False)
             self.table.column("ID", anchor="center", width=50)
             self.table.column("Name", anchor="w", width=200)
             self.table.column("Specification", anchor="w", width=200)
+            self.table.column("Type", anchor="center", width=100)
             self.table.column("Quantity", anchor="center", width=150)
             self.table.column("Description", anchor="w", width=200)
             self.table.column("Date", anchor="center", width=150)
@@ -212,6 +221,7 @@ class Database:
             self.table.heading("ID", text="ID", anchor="center")
             self.table.heading("Name", text="Name", anchor="center")
             self.table.heading("Specification", text="Specification", anchor="center")
+            self.table.heading("Type", text="Type", anchor="center")
             self.table.heading("Quantity", text="Quantity", anchor="center")
             self.table.heading("Description", text="Description", anchor="center")
             self.table.heading("Date", text="Date", anchor="center")
