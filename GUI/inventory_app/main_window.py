@@ -1,6 +1,6 @@
 """Main PySide6 window coordinating UI actions with the repository."""
 
-from PySide6.QtWidgets import (QButtonGroup, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
                                QMessageBox, QPushButton, QTabWidget, QVBoxLayout, QWidget, QComboBox)
 
 from .constants import TYPES
@@ -48,6 +48,10 @@ class InventoryWindow(QMainWindow):
         self.stock = QComboBox()
         self.stock.addItems(('All', 'In Stock', 'Out of Stock'))
         row.addWidget(self.stock)
+        self.item_type = QComboBox()
+        self.item_type.addItems(('All spare part types', *TYPES))
+        self.item_type.currentIndexChanged.connect(self.refresh_tables)
+        row.addWidget(self.item_type)
         search = QPushButton('Search')
         search.clicked.connect(self.refresh_tables)
         clear = QPushButton('Clear')
@@ -55,22 +59,6 @@ class InventoryWindow(QMainWindow):
         row.addWidget(search)
         row.addWidget(clear)
         layout.addLayout(row)
-        types = QHBoxLayout()
-        self.type_group = QButtonGroup(self)
-        all_button = QPushButton('All')
-        all_button.setCheckable(True)
-        all_button.setChecked(True)
-        all_button.setProperty('item_type', 'All')
-        self.type_group.addButton(all_button)
-        types.addWidget(all_button)
-        for item_type in TYPES:
-            button = QPushButton(item_type)
-            button.setCheckable(True)
-            button.setProperty('item_type', item_type)
-            self.type_group.addButton(button)
-            types.addWidget(button)
-        self.type_group.buttonClicked.connect(lambda _: self.refresh_tables())
-        layout.addLayout(types)
         return layout
 
     def _actions(self) -> QWidget:
@@ -87,7 +75,7 @@ class InventoryWindow(QMainWindow):
         return panel
 
     def current_type(self) -> str:
-        return self.type_group.checkedButton().property('item_type')
+        return 'All' if self.item_type.currentIndex() == 0 else self.item_type.currentText()
 
     def refresh_tables(self) -> None:
         try:
@@ -100,7 +88,7 @@ class InventoryWindow(QMainWindow):
     def clear_search(self) -> None:
         self.search_text.clear()
         self.stock.setCurrentText('All')
-        self.type_group.buttons()[0].setChecked(True)
+        self.item_type.setCurrentIndex(0)
         self.refresh_tables()
         self.set_status('Database unfiltered.')
 
