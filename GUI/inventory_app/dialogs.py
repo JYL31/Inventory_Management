@@ -1,14 +1,21 @@
 """Data-entry dialogs for purchases and stock outflows."""
 
-from PySide6.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QMessageBox, QPlainTextEdit
+from collections.abc import Callable
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QPlainTextEdit
 
 from .constants import TYPES
 
 
 class RecordDialog(QDialog):
-    def __init__(self, title: str, fields: list[str], description_field: bool = False, parent=None) -> None:
+    error_reported = Signal(str)
+
+    def __init__(self, title: str, fields: list[str], description_field: bool = False,
+                 submit: Callable[[dict[str, str]], None] | None = None, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle(title)
+        self.submit = submit
         self.widgets: dict[str, QLineEdit | QComboBox | QPlainTextEdit] = {}
         form = QFormLayout(self)
         for field in fields:
@@ -22,6 +29,11 @@ class RecordDialog(QDialog):
                 widget = QLineEdit()
             self.widgets[field] = widget
             form.addRow(f"{'*' if field in ('Name', 'Quantity') else ''}{field}", widget)
+        self.error_message = QLabel()
+        self.error_message.setWordWrap(True)
+        self.error_message.setStyleSheet('color: #b42318; font-weight: bold;')
+        self.error_message.hide()
+        form.addRow(self.error_message)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self._validate_and_accept)
         buttons.rejected.connect(self.reject)
@@ -34,6 +46,21 @@ class RecordDialog(QDialog):
     def _validate_and_accept(self) -> None:
         values = self.values()
         if not values['Name'].strip() or not values['Quantity'].strip():
-            QMessageBox.warning(self, 'Missing values', 'Name and quantity are required.')
+            message = 'Name and quantity are required.'
+            self.show_error(message)
+            self.error_reported.emit(message)
             return
+        if self.submit:
+            try:
+                self.submit(values)
+            except Exception as error:
+                message = str(error)
+                self.show_error(message)
+                self.error_reported.emit(message)
+                return
+        self.error_message.hide()
         self.accept()
+
+    def show_error(self, message: str) -> None:
+        self.error_message.setText(message)
+        self.error_message.show()

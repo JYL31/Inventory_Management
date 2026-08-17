@@ -101,15 +101,15 @@ class InventoryWindow(QMainWindow):
 
     def add_purchase(self) -> None:
         fields = ['Name', 'Specification', 'Type', 'Usage', 'Supplier', 'Quantity', 'Unit Price', 'Shipping', 'Received Date', 'Applied By', 'Responsible By']
-        dialog = RecordDialog('Add Purchase', fields, parent=self)
-        if dialog.exec():
-            self.run_operation(self.repository.add_purchase, dialog.values(), success='Purchase recorded.')
+        dialog = RecordDialog('Add Purchase', fields, submit=self.repository.add_purchase, parent=self)
+        dialog.error_reported.connect(self.show_error)
+        self.run_dialog_operation(dialog, success='Purchase recorded.')
 
     def add_outflow(self) -> None:
         fields = ['Name', 'Specification', 'Type', 'Quantity', 'Description', 'Date']
-        dialog = RecordDialog('Record Outflow', fields, description_field=True, parent=self)
-        if dialog.exec():
-            self.run_operation(self.repository.add_outflow, dialog.values(), success='Outflow recorded.')
+        dialog = RecordDialog('Record Outflow', fields, description_field=True, submit=self.repository.add_outflow, parent=self)
+        dialog.error_reported.connect(self.show_error)
+        self.run_dialog_operation(dialog, success='Outflow recorded.')
 
     def update_field(self, table_key: str, record_id: int, field: str, value: str) -> None:
         self.run_operation(self.repository.update_field, table_key, record_id, field, value, success='Record updated.')
@@ -140,9 +140,18 @@ class InventoryWindow(QMainWindow):
             self.show_error(error)
             self.refresh_tables()
 
+    def run_dialog_operation(self, dialog: RecordDialog, *, success: str) -> None:
+        if dialog.exec():
+            try:
+                self.refresh_tables()
+                self.set_status(success)
+            except Exception as error:
+                self.show_error(error)
+
     def set_status(self, message: str) -> None:
         self.status.setText(message)
+        self.status.setStyleSheet('')
 
     def show_error(self, error: Exception | str) -> None:
         self.status.setText(str(error))
-        QMessageBox.warning(self, 'Inventory Management', str(error))
+        self.status.setStyleSheet('color: #b42318; font-weight: bold;')

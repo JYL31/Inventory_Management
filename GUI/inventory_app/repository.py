@@ -102,6 +102,8 @@ class InventoryRepository:
             shipping = self._number_or_none(values['Shipping'], 'Shipping')
         except ValueError as error:
             raise ValueError(str(error)) from error
+        if quantity_number <= 0:
+            raise ValueError("Quantity must be a positive whole number.")
         today = str(date.today())
         specification = values['Specification'].strip()
         total = None if unit_price is None else quantity_number * unit_price + (shipping or 0)
@@ -129,10 +131,17 @@ class InventoryRepository:
             quantity = int(values['Quantity'])
         except ValueError as error:
             raise ValueError("Quantity must be an integer.") from error
+        if quantity <= 0:
+            raise ValueError("Quantity must be a positive whole number.")
         with self.connection() as database:
-            exists = database.execute('SELECT 1 FROM Inventory WHERE Name=? AND Specification=?', (name, specification)).fetchone()
-            if not exists:
+            inventory = database.execute(
+                'SELECT Quantity FROM Inventory WHERE Name=? AND Specification=?',
+                (name, specification),
+            ).fetchone()
+            if not inventory:
                 raise ValueError("No matching item exists in inventory.")
+            if quantity > inventory[0]:
+                raise ValueError(f"Only {inventory[0]} item(s) are available in inventory.")
             database.execute('UPDATE Inventory SET Quantity=Quantity-?, "Last Update"=? WHERE Name=? AND Specification=?',
                              (quantity, str(date.today()), name, specification))
             database.execute('''INSERT INTO "Outflow History"(Name, Specification, Type, Quantity, Description, Date)
