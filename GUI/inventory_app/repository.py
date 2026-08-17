@@ -48,6 +48,48 @@ class InventoryRepository:
         with self.connection() as database:
             return database.execute(f'SELECT * FROM "{table_name}"{where}', values).fetchall()
 
+    def dashboard_data(self) -> dict[str, list[tuple] | int]:
+        """Return the live, action-oriented information shown on the home dashboard."""
+        with self.connection() as database:
+            totals = database.execute('''
+                SELECT COUNT(*),
+                       COALESCE(SUM(CASE WHEN Quantity > 0 THEN Quantity ELSE 0 END), 0),
+                       COALESCE(SUM(CASE WHEN Quantity BETWEEN 1 AND 5 THEN 1 ELSE 0 END), 0),
+                       COALESCE(SUM(CASE WHEN Quantity < 1 THEN 1 ELSE 0 END), 0)
+                FROM Inventory
+            ''').fetchone()
+            low_stock = database.execute('''
+                SELECT Name, Specification, Type, Quantity, Location, "Last Update"
+                FROM Inventory
+                WHERE Quantity <= 5
+                ORDER BY Quantity ASC, "Last Update" DESC, Name ASC
+                LIMIT 10
+            ''').fetchall()
+            type_breakdown = database.execute('''
+                SELECT Type, COUNT(*), COALESCE(SUM(Quantity), 0)
+                FROM Inventory
+                GROUP BY Type
+                ORDER BY COUNT(*) DESC, Type ASC
+            ''').fetchall()
+            activity = database.execute('''
+                SELECT 'Purchase', Name, Specification, Quantity, "Received Date", ID
+                FROM "Purchase History"
+                UNION ALL
+                SELECT 'Outflow', Name, Specification, -Quantity, Date, ID
+                FROM "Outflow History"
+                ORDER BY 6 DESC
+                LIMIT 10
+            ''').fetchall()
+        return {
+            'part_count': totals[0],
+            'units_on_hand': totals[1],
+            'low_stock_count': totals[2],
+            'out_of_stock_count': totals[3],
+            'low_stock': low_stock,
+            'type_breakdown': type_breakdown,
+            'activity': activity,
+        }
+
     def add_purchase(self, values: dict[str, str]) -> None:
         name, quantity, item_type = values['Name'].strip(), values['Quantity'].strip(), values['Type']
         if not name or not quantity:

@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEd
                                QMessageBox, QPushButton, QTabWidget, QVBoxLayout, QWidget, QComboBox)
 
 from .constants import TYPES
+from .dashboard import Dashboard
 from .dialogs import RecordDialog
 from .repository import InventoryRepository
 from .table import RecordTable
@@ -26,6 +27,8 @@ class InventoryWindow(QMainWindow):
         content = QHBoxLayout()
         content.addWidget(self._actions(), 0)
         self.tabs = QTabWidget()
+        self.dashboard = Dashboard(self.add_purchase, self.add_outflow, self.show_inventory)
+        self.tabs.addTab(self.dashboard, 'Dashboard')
         for key, title in (('inventory', 'Inventory'), ('purchase', 'Purchase History'), ('outflow', 'Outflow History')):
             table = RecordTable(key)
             table.edit_requested.connect(self.update_field)
@@ -79,11 +82,15 @@ class InventoryWindow(QMainWindow):
 
     def refresh_tables(self) -> None:
         try:
+            self.dashboard.refresh(self.repository.dashboard_data())
             for key, table in self.tables.items():
                 table.set_records(self.repository.records(key, self.search_text.text().strip(), self.current_type(), self.stock.currentText()))
             self.set_status('Records loaded.')
         except Exception as error:
             self.show_error(error)
+
+    def show_inventory(self) -> None:
+        self.tabs.setCurrentIndex(1)
 
     def clear_search(self) -> None:
         self.search_text.clear()
@@ -108,7 +115,10 @@ class InventoryWindow(QMainWindow):
         self.run_operation(self.repository.update_field, table_key, record_id, field, value, success='Record updated.')
 
     def delete_selected(self) -> None:
-        key = ('inventory', 'purchase', 'outflow')[self.tabs.currentIndex()]
+        if self.tabs.currentIndex() == 0:
+            self.show_error('Select an entry from one of the history or inventory tabs to delete.')
+            return
+        key = ('inventory', 'purchase', 'outflow')[self.tabs.currentIndex() - 1]
         record_id = self.tables[key].selected_id()
         if record_id is None:
             self.show_error('Select an entry to delete.')
