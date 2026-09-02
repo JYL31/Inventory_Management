@@ -1,5 +1,7 @@
 """Reusable editable table widget for SQLite records."""
 
+from decimal import Decimal, InvalidOperation
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem
 
@@ -22,6 +24,17 @@ class RecordTable(QTableWidget):
         self.horizontalHeader().setStretchLastSection(True)
         self.itemChanged.connect(self._request_edit)
 
+    @staticmethod
+    def _display_value(value: object, column: int, table_key: str) -> str:
+        if value is None:
+            return ""
+        if table_key == 'purchase' and column in (7, 8, 9):
+            try:
+                return format(Decimal(str(value)).quantize(Decimal('0.01')), '.2f')
+            except (InvalidOperation, ValueError, TypeError):
+                return str(value)
+        return str(value)
+
     def set_records(self, rows: list[tuple]) -> None:
         self.blockSignals(True)
         self.setRowCount(0)
@@ -29,7 +42,8 @@ class RecordTable(QTableWidget):
             row = self.rowCount()
             self.insertRow(row)
             for column, value in enumerate(row_data):
-                item = QTableWidgetItem("" if value is None else str(value))
+                text = self._display_value(value, column, self.table_key)
+                item = QTableWidgetItem(text)
                 if column == 0:
                     item.setData(Qt.ItemDataRole.UserRole, value)
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)

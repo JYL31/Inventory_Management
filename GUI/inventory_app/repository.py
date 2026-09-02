@@ -76,13 +76,25 @@ class InventoryRepository:
     @staticmethod
     def _migrate_outflow_schema(database: sqlite3.Connection) -> None:
         table_info = database.execute('PRAGMA table_info("Outflow History")').fetchall()
-        if not table_info or (table_info[0][2].upper() == 'INTEGER' and table_info[0][5] == 1):
+        if not table_info:
             return
 
-        rows = database.execute('SELECT "Outflow ID", "Maintenace ID", "Part Name", Specification, Type, Quantity, Date FROM "Outflow History"').fetchall()
+        columns = [row[1] for row in table_info]
+        if 'Maintenance ID' in columns and 'Maintenace ID' not in columns:
+            return
+
+        legacy_maintenance_id = 'Maintenace ID' if 'Maintenace ID' in columns else 'Maintenance ID'
+        rows = database.execute(
+            f'SELECT "Outflow ID", "{legacy_maintenance_id}", "Part Name", Specification, Type, Quantity, Date FROM "Outflow History"'
+        ).fetchall()
+
+        if 'Maintenace ID' in columns and 'Maintenance ID' not in columns:
+            database.execute('ALTER TABLE "Outflow History" RENAME COLUMN "Maintenace ID" TO "Maintenance ID"')
+            return
+
         database.execute('''CREATE TABLE "Outflow History_new" (
                            "Outflow ID" INTEGER PRIMARY KEY,
-                           "Maintenace ID" TEXT DEFAULT '',
+                           "Maintenance ID" TEXT DEFAULT '',
                            "Part Name" TEXT NOT NULL,
                            Specification TEXT DEFAULT '',
                            Type TEXT DEFAULT '',
@@ -95,7 +107,7 @@ class InventoryRepository:
             except (TypeError, ValueError):
                 outflow_id = fallback_id
             database.execute('''INSERT INTO "Outflow History_new"
-                               ("Outflow ID", "Maintenace ID", "Part Name", Specification, Type, Quantity, Date)
+                               ("Outflow ID", "Maintenance ID", "Part Name", Specification, Type, Quantity, Date)
                                VALUES(?, ?, ?, ?, ?, ?, ?)''', (outflow_id, *row[1:]))
         database.execute('DROP TABLE "Outflow History"')
         database.execute('ALTER TABLE "Outflow History_new" RENAME TO "Outflow History"')
@@ -151,7 +163,7 @@ class InventoryRepository:
                 UNION ALL
                 SELECT 'Outflow', "Part Name", Specification, -Quantity, Date, "Outflow ID"
                 FROM "Outflow History"
-                ORDER BY 6 DESC
+                ORDER BY 5 DESC
                 LIMIT 10
             ''').fetchall()
         return {
@@ -232,7 +244,7 @@ class InventoryRepository:
                 database.execute('UPDATE Inventory SET Quantity=Quantity-?, "Last Update"=? WHERE Name=? AND Specification=?',
                                  (quantity, today, name, specification))
                 database.execute('''INSERT INTO "Outflow History"
-                                    ("Maintenace ID", "Part Name", "Specification", "Type", "Quantity", "Date")
+                                    ("Maintenance ID", "Part Name", "Specification", "Type", "Quantity", "Date")
                                      VALUES(?, ?, ?, ?, ?, ?)''',
                                      (str(maintenance_id), name, specification, part['Type'], quantity, today))
 

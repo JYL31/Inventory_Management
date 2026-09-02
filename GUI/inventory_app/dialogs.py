@@ -18,7 +18,7 @@ class RecordDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.submit = submit
-        self.widgets: dict[str, QLineEdit | QComboBox | QPlainTextEdit] = {}
+        self.widgets: dict[str, QLineEdit | QComboBox | QPlainTextEdit | QDateEdit] = {}
         form = QFormLayout(self)
         for field in fields:
             if field == 'Type':
@@ -27,6 +27,10 @@ class RecordDialog(QDialog):
             elif field == 'Description' and description_field:
                 widget = QPlainTextEdit()
                 widget.setFixedHeight(90)
+            elif field == 'Received Date':
+                widget = QDateEdit(QDate.currentDate())
+                widget.setCalendarPopup(True)
+                widget.setDisplayFormat('yyyy-MM-dd')
             else:
                 widget = QLineEdit()
             self.widgets[field] = widget
@@ -42,8 +46,13 @@ class RecordDialog(QDialog):
         form.addRow(buttons)
 
     def values(self) -> dict[str, str]:
-        return {name: widget.currentText() if isinstance(widget, QComboBox) else widget.toPlainText() if isinstance(widget, QPlainTextEdit) else widget.text()
-                for name, widget in self.widgets.items()}
+        return {
+            name: widget.currentText() if isinstance(widget, QComboBox)
+            else widget.toPlainText() if isinstance(widget, QPlainTextEdit)
+            else widget.date().toString('yyyy-MM-dd') if isinstance(widget, QDateEdit)
+            else widget.text()
+            for name, widget in self.widgets.items()
+        }
 
     def _validate_and_accept(self) -> None:
         values = self.values()
