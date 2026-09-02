@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEd
 
 from .constants import TYPES
 from .dashboard import Dashboard
-from .dialogs import RecordDialog
+from .dialogs import MaintenanceDialog, RecordDialog
 from .repository import InventoryRepository
 from .table import RecordTable
 
@@ -29,7 +29,8 @@ class InventoryWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.dashboard = Dashboard(self.add_purchase, self.add_outflow, self.show_inventory)
         self.tabs.addTab(self.dashboard, 'Dashboard')
-        for key, title in (('inventory', 'Inventory'), ('purchase', 'Purchase History'), ('outflow', 'Outflow History')):
+        for key, title in (('inventory', 'Inventory'), ('purchase', 'Purchase History'),
+                   ('outflow', 'Outflow History'), ('maintenance', 'Maintenance')):
             table = RecordTable(key)
             table.edit_requested.connect(self.update_field)
             self.tables[key] = table
@@ -106,8 +107,7 @@ class InventoryWindow(QMainWindow):
         self.run_dialog_operation(dialog, success='Purchase recorded.')
 
     def add_outflow(self) -> None:
-        fields = ['Name', 'Specification', 'Type', 'Quantity', 'Description', 'Date']
-        dialog = RecordDialog('Record Outflow', fields, description_field=True, submit=self.repository.add_outflow, parent=self)
+        dialog = MaintenanceDialog(self.repository.add_maintenance, parent=self)
         dialog.error_reported.connect(self.show_error)
         self.run_dialog_operation(dialog, success='Outflow recorded.')
 
@@ -118,7 +118,7 @@ class InventoryWindow(QMainWindow):
         if self.tabs.currentIndex() == 0:
             self.show_error('Select an entry from one of the history or inventory tabs to delete.')
             return
-        key = ('inventory', 'purchase', 'outflow')[self.tabs.currentIndex() - 1]
+        key = ('inventory', 'purchase', 'outflow', 'maintenance')[self.tabs.currentIndex() - 1]
         record_id = self.tables[key].selected_id()
         if record_id is None:
             self.show_error('Select an entry to delete.')

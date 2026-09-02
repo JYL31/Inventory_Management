@@ -7,7 +7,7 @@ from .constants import TABLES
 
 
 class RecordTable(QTableWidget):
-    edit_requested = Signal(str, int, str, str)
+    edit_requested = Signal(str, object, str, str)
 
     def __init__(self, table_key: str) -> None:
         _, columns = TABLES[table_key]
@@ -31,12 +31,12 @@ class RecordTable(QTableWidget):
             for column, value in enumerate(row_data):
                 item = QTableWidgetItem("" if value is None else str(value))
                 if column == 0:
-                    item.setData(Qt.ItemDataRole.UserRole, int(value))
+                    item.setData(Qt.ItemDataRole.UserRole, value)
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.setItem(row, column, item)
         self.blockSignals(False)
 
-    def selected_id(self) -> int | None:
+    def selected_id(self) -> object | None:
         row = self.currentRow()
         item = self.item(row, 0) if row >= 0 else None
         return item.data(Qt.ItemDataRole.UserRole) if item else None

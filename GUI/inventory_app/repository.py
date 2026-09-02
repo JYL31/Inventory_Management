@@ -21,6 +21,8 @@ class InventoryRepository:
     def connection(self) -> Iterator[sqlite3.Connection]:
         database = sqlite3.connect(self.database_path)
         try:
+            self._migrate_maintenance_schema(database)
+            self._migrate_outflow_schema(database)
             yield database
             database.commit()
         except Exception:
@@ -29,19 +31,91 @@ class InventoryRepository:
         finally:
             database.close()
 
+    @staticmethod
+    def _migrate_maintenance_schema(database: sqlite3.Connection) -> None:
+        table_info = database.execute('PRAGMA table_info("Maintenance Record")').fetchall()
+        if not table_info:
+            return
+        columns = [row[1] for row in table_info]
+        extra_date_columns = {'Date', 'Start Date', 'Finish Date'} & set(columns)
+        if not extra_date_columns:
+            return
+
+        rows = database.execute('SELECT * FROM "Maintenance Record"').fetchall()
+        values_by_column = [dict(zip(columns, row)) for row in rows]
+        database.execute('''CREATE TABLE "Maintenance Record_new" (
+                           ID INTEGER PRIMARY KEY,
+                           "Equipment ID" TEXT NOT NULL,
+                           "Equipment Name" TEXT NOT NULL,
+                           "Technician Name" TEXT NOT NULL,
+                           "Job Description" TEXT,
+                           "Start Time" TEXT NOT NULL,
+                           "Finish Time" TEXT NOT NULL,
+                           "Parts Used" TEXT
+                       )''')
+        for values in values_by_column:
+            start_date = values.get('Start Date') or values.get('Date')
+            finish_date = values.get('Finish Date') or values.get('Date')
+            start_time = InventoryRepository._combine_date_time(start_date, values.get('Start Time'))
+            finish_time = InventoryRepository._combine_date_time(finish_date, values.get('Finish Time'))
+            database.execute('''INSERT INTO "Maintenance Record_new"
+                               (ID, "Equipment ID", "Equipment Name", "Technician Name", "Job Description",
+                                "Start Time", "Finish Time", "Parts Used")
+                               VALUES(?, ?, ?, ?, ?, ?, ?, ?)''',
+                             (values['ID'], values['Equipment ID'], values['Equipment Name'], values['Technician Name'],
+                              values.get('Job Description'), start_time, finish_time, values.get('Parts Used')))
+        database.execute('DROP TABLE "Maintenance Record"')
+        database.execute('ALTER TABLE "Maintenance Record_new" RENAME TO "Maintenance Record"')
+
+    @staticmethod
+    def _combine_date_time(selected_date: str | None, selected_time: str | None) -> str:
+        if selected_date and selected_time:
+            return f'{selected_date} {selected_time}'
+        return selected_time or selected_date or ''
+
+    @staticmethod
+    def _migrate_outflow_schema(database: sqlite3.Connection) -> None:
+        table_info = database.execute('PRAGMA table_info("Outflow History")').fetchall()
+        if not table_info or (table_info[0][2].upper() == 'INTEGER' and table_info[0][5] == 1):
+            return
+
+        rows = database.execute('SELECT "Outflow ID", "Maintenace ID", "Part Name", Specification, Type, Quantity, Date FROM "Outflow History"').fetchall()
+        database.execute('''CREATE TABLE "Outflow History_new" (
+                           "Outflow ID" INTEGER PRIMARY KEY,
+                           "Maintenace ID" TEXT DEFAULT '',
+                           "Part Name" TEXT NOT NULL,
+                           Specification TEXT DEFAULT '',
+                           Type TEXT DEFAULT '',
+                           Quantity INTEGER NOT NULL,
+                           Date TEXT
+                       )''')
+        for fallback_id, row in enumerate(rows, start=1):
+            try:
+                outflow_id = int(row[0])
+            except (TypeError, ValueError):
+                outflow_id = fallback_id
+            database.execute('''INSERT INTO "Outflow History_new"
+                               ("Outflow ID", "Maintenace ID", "Part Name", Specification, Type, Quantity, Date)
+                               VALUES(?, ?, ?, ?, ?, ?, ?)''', (outflow_id, *row[1:]))
+        database.execute('DROP TABLE "Outflow History"')
+        database.execute('ALTER TABLE "Outflow History_new" RENAME TO "Outflow History"')
+
     def records(self, table_key: str, text: str = "", item_type: str = "All", stock: str = "All") -> list[tuple]:
         table_name, _ = TABLES[table_key]
         clauses: list[str] = []
         values: list[object] = []
-        if item_type != "All":
+        if item_type != "All" and table_key in ('inventory', 'purchase', 'outflow'):
             clauses.append('Type = ?')
             values.append(item_type)
-        if stock == "In Stock":
+        if stock == "In Stock" and table_key in ('inventory', 'outflow'):
             clauses.append('Quantity >= 1')
-        elif stock == "Out of Stock":
+        elif stock == "Out of Stock" and table_key in ('inventory', 'outflow'):
             clauses.append('Quantity < 1')
         if text:
-            searchable = ('Name', 'Specification', 'Usage') if table_key != 'outflow' else ('Name', 'Specification')
+            searchable = {
+                'outflow': ('Part Name', 'Specification'),
+                'maintenance': ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Parts Used'),
+            }.get(table_key, ('Name', 'Specification', 'Usage'))
             clauses.append('(' + ' OR '.join(f'"{field}" LIKE ?' for field in searchable) + ')')
             values.extend([f'%{text}%'] * len(searchable))
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
@@ -75,7 +149,7 @@ class InventoryRepository:
                 SELECT 'Purchase', Name, Specification, Quantity, "Received Date", ID
                 FROM "Purchase History"
                 UNION ALL
-                SELECT 'Outflow', Name, Specification, -Quantity, Date, ID
+                SELECT 'Outflow', "Part Name", Specification, -Quantity, Date, "Outflow ID"
                 FROM "Outflow History"
                 ORDER BY 6 DESC
                 LIMIT 10
@@ -121,32 +195,53 @@ class InventoryRepository:
                  unit_price, shipping, total, values['Received Date'].strip(), values['Applied By'].strip(), values['Responsible By'].strip()),
             )
 
-    def add_outflow(self, values: dict[str, str]) -> None:
-        name, specification = values['Name'].strip(), values['Specification'].strip()
-        if not name or not values['Quantity'].strip():
-            raise ValueError("Name and quantity are required.")
-        if values['Type'] == "Select a Type":
-            raise ValueError("Select an item type.")
-        try:
-            quantity = int(values['Quantity'])
-        except ValueError as error:
-            raise ValueError("Quantity must be an integer.") from error
-        if quantity <= 0:
-            raise ValueError("Quantity must be a positive whole number.")
+    def add_maintenance(self, maintenance: dict[str, str], parts: list[dict[str, str]]) -> None:
+        quantities: list[int] = []
+        for part in parts:
+            try:
+                quantity = int(part['Quantity'])
+            except ValueError as error:
+                raise ValueError("Quantity must be an integer.") from error
+            if quantity <= 0:
+                raise ValueError("Quantity must be a positive whole number.")
+            quantities.append(quantity)
+
+        parts_text = '\n'.join(
+            f"{part['Part Name'].strip()} {part['Specification'].strip()} {' x '} {quantity} |"
+            for part, quantity in zip(parts, quantities)
+        )
+        today = str(date.today())
         with self.connection() as database:
-            inventory = database.execute(
-                'SELECT Quantity FROM Inventory WHERE Name=? AND Specification=?',
-                (name, specification),
-            ).fetchone()
-            if not inventory:
-                raise ValueError("No matching item exists in inventory.")
-            if quantity > inventory[0]:
-                raise ValueError(f"Only {inventory[0]} item(s) are available in inventory.")
-            database.execute('UPDATE Inventory SET Quantity=Quantity-?, "Last Update"=? WHERE Name=? AND Specification=?',
-                             (quantity, str(date.today()), name, specification))
-            database.execute('''INSERT INTO "Outflow History"(Name, Specification, Type, Quantity, Description, Date)
-                                VALUES(?, ?, ?, ?, ?, ?)''',
-                             (name, specification, values['Type'], quantity, values['Description'].strip(), values['Date'].strip()))
+            database.execute('''INSERT INTO "Maintenance Record"
+                         ("Equipment ID", "Equipment Name", "Technician Name", "Job Description", "Start Time", "Finish Time", "Parts Used")
+                         VALUES(?, ?, ?, ?, ?, ?, ?)''',
+                             tuple(maintenance[field].strip() for field in
+                             ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Start Time', 'Finish Time'))
+                             + (parts_text,))
+            maintenance_id = database.execute('SELECT last_insert_rowid()').fetchone()[0]
+            for part, quantity in zip(parts, quantities):
+                name, specification = part['Part Name'].strip(), part['Specification'].strip()
+                inventory = database.execute(
+                    'SELECT Quantity FROM Inventory WHERE Name=? AND Specification=?',
+                    (name, specification),
+                ).fetchone()
+                if not inventory:
+                    raise ValueError(f"No matching item exists in inventory: {name}.")
+                if quantity > inventory[0]:
+                    raise ValueError(f"Only {inventory[0]} item(s) are available for {name}.")
+                database.execute('UPDATE Inventory SET Quantity=Quantity-?, "Last Update"=? WHERE Name=? AND Specification=?',
+                                 (quantity, today, name, specification))
+                database.execute('''INSERT INTO "Outflow History"
+                                    ("Maintenace ID", "Part Name", "Specification", "Type", "Quantity", "Date")
+                                     VALUES(?, ?, ?, ?, ?, ?)''',
+                                     (str(maintenance_id), name, specification, part['Type'], quantity, today))
+
+    def add_outflow(self, values: dict[str, str]) -> None:
+        """Preserve the legacy single-item API for callers outside the UI."""
+        self.add_maintenance(
+            {field: values.get(field, '') for field in ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Start Time', 'Finish Time')},
+            [{'Part Name': values['Name'], 'Specification': values['Specification'], 'Type': values['Type'], 'Quantity': values['Quantity']}],
+        )
 
     def update_field(self, table_key: str, record_id: int, field: str, value: str) -> None:
         table_name, fields = TABLES[table_key]
@@ -161,13 +256,20 @@ class InventoryRepository:
         table_name, _ = TABLES[table_key]
         with self.connection() as database:
             if table_key in ('purchase', 'outflow'):
-                history = database.execute(f'SELECT Name, Specification, Quantity FROM "{table_name}" WHERE ID=?', (record_id,)).fetchone()
+                name_field = 'Name' if table_key == 'purchase' else 'Part Name'
+                id_field = 'ID' if table_key == 'purchase' else 'Outflow ID'
+                history = database.execute(
+                    f'SELECT "{name_field}", Specification, Quantity FROM "{table_name}" WHERE "{id_field}"=?',
+                    (record_id,),
+                ).fetchone()
                 if history:
                     adjustment = -history[2] if table_key == 'purchase' else history[2]
                     database.execute('UPDATE Inventory SET Quantity=Quantity+?, "Last Update"=? WHERE Name=? AND Specification=?',
                                      (adjustment, str(date.today()), history[0], history[1]))
-            database.execute(f'DELETE FROM "{table_name}" WHERE ID=?', (record_id,))
-            database.execute(f'UPDATE "{table_name}" SET ID = (SELECT COUNT(*) FROM "{table_name}" AS prior WHERE prior.rowid <= "{table_name}".rowid)')
+            id_field = 'ID' if table_key != 'outflow' else 'Outflow ID'
+            database.execute(f'DELETE FROM "{table_name}" WHERE "{id_field}"=?', (record_id,))
+            if table_key in ('inventory', 'purchase'):
+                database.execute(f'UPDATE "{table_name}" SET ID = (SELECT COUNT(*) FROM "{table_name}" AS prior WHERE prior.rowid <= "{table_name}".rowid)')
 
     def export(self, destination: str) -> None:
         with self.connection() as database, pd.ExcelWriter(destination) as writer:
