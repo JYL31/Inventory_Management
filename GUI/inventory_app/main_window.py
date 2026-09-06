@@ -1,7 +1,10 @@
 """Main PySide6 window coordinating UI actions with the repository."""
 
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-                               QMessageBox, QPushButton, QTabWidget, QVBoxLayout, QWidget, QComboBox)
+                               QMessageBox, QPushButton, QTabWidget, QVBoxLayout, QWidget, QComboBox, QPlainTextEdit,
+                               QDialog, QDialogButtonBox)
 
 from .constants import TYPES
 from .dashboard import Dashboard
@@ -33,6 +36,13 @@ class InventoryWindow(QMainWindow):
                    ('outflow', 'Outflow History'), ('maintenance', 'Maintenance')):
             table = RecordTable(key)
             table.edit_requested.connect(self.update_field)
+
+            if key == 'maintenance':
+                table.description_requested.connect(
+                    self.show_job_description
+                )
+                table.reference_files_requested.connect(self.open_reference_files)
+
             self.tables[key] = table
             self.tabs.addTab(table, title)
         content.addWidget(self.tabs, 1)
@@ -155,3 +165,31 @@ class InventoryWindow(QMainWindow):
     def show_error(self, error: Exception | str) -> None:
         self.status.setText(str(error))
         self.status.setStyleSheet('color: #b42318; font-weight: bold;')
+
+    def show_job_description(self, description: str) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Job Description')
+        dialog.resize(600, 400)
+
+        layout = QVBoxLayout(dialog)
+
+        text_edit = QPlainTextEdit()
+        text_edit.setPlainText(description)
+        text_edit.setReadOnly(True)
+
+        layout.addWidget(text_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Close
+        )
+        buttons.rejected.connect(dialog.reject)
+        buttons.accepted.connect(dialog.accept)
+
+        layout.addWidget(buttons)
+
+        dialog.exec()
+
+    def open_reference_files(self, paths: str) -> None:
+        for path in paths.splitlines():
+            if path.strip() and not QDesktopServices.openUrl(QUrl.fromLocalFile(path.strip())):
+                self.show_error(f'Unable to open reference file: {path.strip()}')

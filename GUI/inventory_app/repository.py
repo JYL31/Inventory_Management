@@ -37,6 +37,9 @@ class InventoryRepository:
         if not table_info:
             return
         columns = [row[1] for row in table_info]
+        if 'Reference Files' not in columns:
+            database.execute('ALTER TABLE "Maintenance Record" ADD COLUMN "Reference Files" TEXT')
+            columns.append('Reference Files')
         extra_date_columns = {'Date', 'Start Date', 'Finish Date'} & set(columns)
         if not extra_date_columns:
             return
@@ -51,7 +54,8 @@ class InventoryRepository:
                            "Job Description" TEXT,
                            "Start Time" TEXT NOT NULL,
                            "Finish Time" TEXT NOT NULL,
-                           "Parts Used" TEXT
+                           "Parts Used" TEXT,
+                           "Reference Files" TEXT
                        )''')
         for values in values_by_column:
             start_date = values.get('Start Date') or values.get('Date')
@@ -60,10 +64,11 @@ class InventoryRepository:
             finish_time = InventoryRepository._combine_date_time(finish_date, values.get('Finish Time'))
             database.execute('''INSERT INTO "Maintenance Record_new"
                                (ID, "Equipment ID", "Equipment Name", "Technician Name", "Job Description",
-                                "Start Time", "Finish Time", "Parts Used")
-                               VALUES(?, ?, ?, ?, ?, ?, ?, ?)''',
+                                                                "Start Time", "Finish Time", "Parts Used", "Reference Files")
+                                                             VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                              (values['ID'], values['Equipment ID'], values['Equipment Name'], values['Technician Name'],
-                              values.get('Job Description'), start_time, finish_time, values.get('Parts Used')))
+                                                            values.get('Job Description'), start_time, finish_time, values.get('Parts Used'),
+                                                            values.get('Reference Files')))
         database.execute('DROP TABLE "Maintenance Record"')
         database.execute('ALTER TABLE "Maintenance Record_new" RENAME TO "Maintenance Record"')
 
@@ -219,18 +224,19 @@ class InventoryRepository:
             quantities.append(quantity)
 
         parts_text = '\n'.join(
-            f"{part['Part Name'].strip()} {part['Specification'].strip()} {' x '} {quantity} |"
+            f"{part['Part Name'].strip()} {part['Specification'].strip()} {' x '} {quantity}"
             for part, quantity in zip(parts, quantities)
         )
         today = str(date.today())
         with self.connection() as database:
             database.execute('''INSERT INTO "Maintenance Record"
-                         ("Equipment ID", "Equipment Name", "Technician Name", "Job Description", "Start Time", "Finish Time", "Parts Used")
-                         VALUES(?, ?, ?, ?, ?, ?, ?)''',
+                         ("Equipment ID", "Equipment Name", "Technician Name", "Job Description", "Start Time", "Finish Time", "Parts Used", "Reference Files")
+                         VALUES(?, ?, ?, ?, ?, ?, ?, ?)''',
                              tuple(maintenance[field].strip() for field in
                              ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Start Time', 'Finish Time'))
-                             + (parts_text,))
+                             + (parts_text, maintenance.get('Reference Files', '').strip()))
             maintenance_id = database.execute('SELECT last_insert_rowid()').fetchone()[0]
+            outflow_date = maintenance['Finish Time'].split(' ')[0]
             for part, quantity in zip(parts, quantities):
                 name, specification = part['Part Name'].strip(), part['Specification'].strip()
                 inventory = database.execute(
@@ -246,7 +252,7 @@ class InventoryRepository:
                 database.execute('''INSERT INTO "Outflow History"
                                     ("Maintenance ID", "Part Name", "Specification", "Type", "Quantity", "Date")
                                      VALUES(?, ?, ?, ?, ?, ?)''',
-                                     (str(maintenance_id), name, specification, part['Type'], quantity, today))
+                                     (str(maintenance_id), name, specification, part['Type'], quantity, outflow_date))
 
     def add_outflow(self, values: dict[str, str]) -> None:
         """Preserve the legacy single-item API for callers outside the UI."""

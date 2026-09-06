@@ -3,9 +3,9 @@
 from collections.abc import Callable
 
 from PySide6.QtCore import QDate, QTime, Signal
-from PySide6.QtWidgets import (QComboBox, QDateEdit, QDialog, QDialogButtonBox, QFormLayout, QGridLayout,
-                               QGroupBox, QLabel, QLineEdit, QPlainTextEdit, QPushButton, QScrollArea,
-                               QTimeEdit, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QComboBox, QDateEdit, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
+                               QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
+                               QPushButton, QScrollArea, QTimeEdit, QVBoxLayout, QWidget)
 
 from .constants import TYPES
 
@@ -105,6 +105,17 @@ class MaintenanceDialog(QDialog):
                 widget.setFixedHeight(65)
             self.maintenance_widgets[field] = widget
             maintenance_form.addRow(field, widget)
+        self.reference_files = QPlainTextEdit()
+        self.reference_files.setFixedHeight(65)
+        self.reference_files.setReadOnly(True)
+        browse_files = QPushButton('Browse...')
+        browse_files.clicked.connect(self._select_reference_files)
+        reference_files_row = QWidget()
+        reference_files_layout = QHBoxLayout(reference_files_row)
+        reference_files_layout.setContentsMargins(0, 0, 0, 0)
+        reference_files_layout.addWidget(self.reference_files)
+        reference_files_layout.addWidget(browse_files)
+        maintenance_form.addRow('Reference Files', reference_files_row)
         layout.addWidget(maintenance)
 
         parts = QGroupBox('Parts Used')
@@ -135,6 +146,11 @@ class MaintenanceDialog(QDialog):
         layout.addWidget(buttons)
         self.add_part()
 
+    def _select_reference_files(self) -> None:
+        paths, _ = QFileDialog.getOpenFileNames(self, 'Select Reference Files')
+        if paths:
+            self.reference_files.setPlainText('\n'.join(paths))
+
     def add_part(self) -> None:
         row = len(self.part_rows) + 1
         widgets: dict[str, QLineEdit | QComboBox] = {
@@ -158,6 +174,7 @@ class MaintenanceDialog(QDialog):
                        if name not in ('Start Date', 'Finish Date')}
         maintenance['Start Time'] = f"{fields['Start Date']} {fields['Start Time']}"
         maintenance['Finish Time'] = f"{fields['Finish Date']} {fields['Finish Time']}"
+        maintenance['Reference Files'] = self.reference_files.toPlainText()
         parts = [{
             name: widget.currentText() if isinstance(widget, QComboBox) else widget.text()
             for name, widget in row.items()
