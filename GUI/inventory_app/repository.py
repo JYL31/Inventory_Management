@@ -230,6 +230,14 @@ class InventoryRepository:
         )
         today = str(date.today())
         with self.connection() as database:
+            equipment_id = maintenance['Equipment ID'].strip()
+            equipment = database.execute(
+                'SELECT 1 FROM "Equipment List" WHERE "Equipment ID"=?',
+                (equipment_id,),
+            ).fetchone()
+            if not equipment:
+                raise ValueError(f"Equipment ID not found in Equipment List: {equipment_id}.")
+            finish_date = maintenance['Finish Time'].split(' ')[0]
             database.execute('''INSERT INTO "Maintenance Record"
                          ("Equipment ID", "Equipment Name", "Technician Name", "Job Description", "Start Time", "Finish Time", "Parts Used", "Reference Files")
                          VALUES(?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -237,7 +245,7 @@ class InventoryRepository:
                              ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Start Time', 'Finish Time'))
                              + (parts_text, maintenance.get('Reference Files', '').strip()))
             maintenance_id = database.execute('SELECT last_insert_rowid()').fetchone()[0]
-            outflow_date = maintenance['Finish Time'].split(' ')[0]
+            outflow_date = finish_date
             for part, quantity in zip(parts, quantities):
                 name, specification = part['Part Name'].strip(), part['Specification'].strip()
                 inventory = database.execute(
@@ -254,6 +262,8 @@ class InventoryRepository:
                                     ("Maintenance ID", "Part Name", "Specification", "Type", "Quantity", "Date")
                                      VALUES(?, ?, ?, ?, ?, ?)''',
                                      (str(maintenance_id), name, specification, part['Type'], quantity, outflow_date))
+            database.execute('UPDATE "Equipment List" SET "Last Maintenance"=? WHERE "Equipment ID"=?',
+                             (finish_date, equipment_id))
 
     def add_outflow(self, values: dict[str, str]) -> None:
         """Preserve the legacy single-item API for callers outside the UI."""
