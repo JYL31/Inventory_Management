@@ -130,6 +130,7 @@ class InventoryRepository:
             clauses.append('Quantity < 1')
         if text:
             searchable = {
+                'equipment': ('Equipment ID', 'Equipment Name', 'Model', 'Serial Number', 'Location'),
                 'outflow': ('Part Name', 'Specification'),
                 'maintenance': ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Parts Used'),
             }.get(table_key, ('Name', 'Specification', 'Usage'))
@@ -265,10 +266,11 @@ class InventoryRepository:
         table_name, fields = TABLES[table_key]
         if field not in fields or field == 'ID':
             raise ValueError("The ID field cannot be edited.")
+        id_field = fields[0]
         with self.connection() as database:
-            database.execute(f'UPDATE "{table_name}" SET "{field}"=? WHERE ID=?', (value or None, record_id))
+            database.execute(f'UPDATE "{table_name}" SET "{field}"=? WHERE "{id_field}"=?', (value or None, record_id))
             if table_key == 'inventory':
-                database.execute('UPDATE Inventory SET "Last Update"=? WHERE ID=?', (str(date.today()), record_id))
+                database.execute('UPDATE Inventory SET "Last Update"=? WHERE "ID"=?', (str(date.today()), record_id))
 
     def delete(self, table_key: str, record_id: int) -> None:
         table_name, _ = TABLES[table_key]
@@ -284,7 +286,7 @@ class InventoryRepository:
                     adjustment = -history[2] if table_key == 'purchase' else history[2]
                     database.execute('UPDATE Inventory SET Quantity=Quantity+?, "Last Update"=? WHERE Name=? AND Specification=?',
                                      (adjustment, str(date.today()), history[0], history[1]))
-            id_field = 'ID' if table_key != 'outflow' else 'Outflow ID'
+            id_field = TABLES[table_key][1][0]
             database.execute(f'DELETE FROM "{table_name}" WHERE "{id_field}"=?', (record_id,))
             if table_key in ('inventory', 'purchase'):
                 database.execute(f'UPDATE "{table_name}" SET ID = (SELECT COUNT(*) FROM "{table_name}" AS prior WHERE prior.rowid <= "{table_name}".rowid)')

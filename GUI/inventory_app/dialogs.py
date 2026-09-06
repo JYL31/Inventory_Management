@@ -188,9 +188,12 @@ class MaintenanceDialog(QDialog):
         if any(not maintenance[field].strip() for field in required):
             self.show_error('Complete all maintenance fields.')
             return
+        parts = [part for part in parts
+                 if any(part[field].strip() for field in ('Part Name', 'Specification', 'Quantity'))]
         if not parts or any(not part['Part Name'].strip() or not part['Quantity'].strip() for part in parts):
-            self.show_error('Add at least one part with a name and quantity.')
-            return
+            if parts:
+                self.show_error('Add a name and quantity for every part.')
+                return
         if any(part['Type'] == 'Select a Type' for part in parts):
             self.show_error('Select an item type for every part.')
             return

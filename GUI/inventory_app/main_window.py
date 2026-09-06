@@ -32,7 +32,8 @@ class InventoryWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.dashboard = Dashboard(self.add_purchase, self.add_outflow, self.show_inventory)
         self.tabs.addTab(self.dashboard, 'Dashboard')
-        for key, title in (('inventory', 'Inventory'), ('purchase', 'Purchase History'),
+        self.tab_keys = []
+        for key, title in (('inventory', 'Inventory'), ('equipment', 'Equipment List'), ('purchase', 'Purchase History'),
                    ('outflow', 'Outflow History'), ('maintenance', 'Maintenance')):
             table = RecordTable(key)
             table.edit_requested.connect(self.update_field)
@@ -44,6 +45,7 @@ class InventoryWindow(QMainWindow):
                 table.reference_files_requested.connect(self.open_reference_files)
 
             self.tables[key] = table
+            self.tab_keys.append(key)
             self.tabs.addTab(table, title)
         content.addWidget(self.tabs, 1)
         layout.addLayout(content, 1)
@@ -128,7 +130,7 @@ class InventoryWindow(QMainWindow):
         if self.tabs.currentIndex() == 0:
             self.show_error('Select an entry from one of the history or inventory tabs to delete.')
             return
-        key = ('inventory', 'purchase', 'outflow', 'maintenance')[self.tabs.currentIndex() - 1]
+        key = self.tab_keys[self.tabs.currentIndex() - 1]
         record_id = self.tables[key].selected_id()
         if record_id is None:
             self.show_error('Select an entry to delete.')
