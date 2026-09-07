@@ -132,10 +132,19 @@ class InventoryRepository:
             searchable = {
                 'equipment': ('Equipment ID', 'Equipment Name', 'Model', 'Serial Number', 'Location'),
                 'outflow': ('Part Name', 'Specification'),
-                'maintenance': ('Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Parts Used'),
+                'maintenance': ('ID', 'Equipment ID', 'Equipment Name', 'Technician Name', 'Job Description', 'Parts Used'),
             }.get(table_key, ('Name', 'Specification', 'Usage'))
-            clauses.append('(' + ' OR '.join(f'"{field}" LIKE ?' for field in searchable) + ')')
-            values.extend([f'%{text}%'] * len(searchable))
+            search_value = f'%{text}%'
+            search_clauses = [f'"{field}" LIKE ?' for field in searchable]
+            values.extend([search_value] * len(searchable))
+            if table_key == 'equipment':
+                search_clauses.append(
+                    'EXISTS (SELECT 1 FROM "Maintenance Record" AS maintenance '
+                    'WHERE maintenance."ID" LIKE ? '
+                    'AND maintenance."Equipment ID" = "Equipment List"."Equipment ID")'
+                )
+                values.append(search_value)
+            clauses.append('(' + ' OR '.join(search_clauses) + ')')
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         with self.connection() as database:
             return database.execute(f'SELECT * FROM "{table_name}"{where}', values).fetchall()
@@ -155,6 +164,12 @@ class InventoryRepository:
                 FROM Inventory
                 WHERE Quantity <= 5
                 ORDER BY Quantity ASC, "Last Update" DESC, Name ASC
+                LIMIT 10
+            ''').fetchall()
+            maintenance_activity = database.execute('''
+                SELECT "Equipment ID", "Equipment Name", "Technician Name", "Job Description", "Finish Time"
+                FROM "Maintenance Record"
+                ORDER BY "Finish Time" DESC
                 LIMIT 10
             ''').fetchall()
             type_breakdown = database.execute('''
@@ -178,6 +193,7 @@ class InventoryRepository:
             'low_stock_count': totals[2],
             'out_of_stock_count': totals[3],
             'low_stock': low_stock,
+            'maintenance_activity': maintenance_activity,
             'type_breakdown': type_breakdown,
             'activity': activity,
         }

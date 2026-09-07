@@ -63,9 +63,13 @@ class Dashboard(QWidget):
 
         tables = QHBoxLayout()
         self.low_stock = self._table(('Part', 'Specification', 'Type', 'Qty', 'Location', 'Updated'))
+        self.maintenance_activity = self._table(('Equipment', 'Equipment Name', 'Technician', 'Job', 'Finish Time'))
         self.activity = self._table(('Movement', 'Part', 'Specification', 'Change', 'Date'))
         self.type_breakdown = self._table(('Type', 'Parts', 'Units'))
-        tables.addWidget(self._section('Stock attention', 'Parts needing replenishment (five or fewer units).', self.low_stock), 3)
+        left = QVBoxLayout()
+        left.addWidget(self._section('Stock attention', 'Parts needing replenishment (five or fewer units).', self.low_stock), 3)
+        left.addWidget(self._section('Recent maintenance', 'The ten latest completed maintenance activities.', self.maintenance_activity), 2)
+        tables.addLayout(left, 3)
         right = QVBoxLayout()
         right.addWidget(self._section('Recent activity', 'Latest purchases and outflows.', self.activity), 3)
         right.addWidget(self._section('Stock by type', 'Current spread across spare-part categories.', self.type_breakdown), 2)
@@ -101,6 +105,7 @@ class Dashboard(QWidget):
         for key, card in self.cards.items():
             card.set_value(int(data[key]))
         self._set_rows(self.low_stock, data['low_stock'])
+        self._set_rows(self.maintenance_activity, data['maintenance_activity'])
         self._set_rows(self.type_breakdown, data['type_breakdown'])
         activity_rows = [(kind, name, specification, f'{change:+d}', movement_date)
                          for kind, name, specification, change, movement_date, _ in data['activity']]

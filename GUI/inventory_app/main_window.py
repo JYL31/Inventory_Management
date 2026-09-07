@@ -58,7 +58,7 @@ class InventoryWindow(QMainWindow):
         layout = QVBoxLayout()
         row = QHBoxLayout()
         self.search_text = QLineEdit()
-        self.search_text.setPlaceholderText('Search name, specification, or usage')
+        self.search_text.setPlaceholderText('Search Equipment ID, Equipment Name, or Maintenance ID')
         self.search_text.returnPressed.connect(self.refresh_tables)
         row.addWidget(self.search_text, 1)
         self.stock = QComboBox()
