@@ -1,4 +1,4 @@
-"""Data-entry dialogs for purchases and stock outflows."""
+"""Data-entry dialogs for equipment, purchases, and stock outflows."""
 
 from collections.abc import Callable
 
@@ -70,6 +70,53 @@ class RecordDialog(QDialog):
                 self.error_reported.emit(message)
                 return
         self.error_message.hide()
+        self.accept()
+
+    def show_error(self, message: str) -> None:
+        self.error_message.setText(message)
+        self.error_message.show()
+
+
+class EquipmentDialog(QDialog):
+    error_reported = Signal(str)
+
+    def __init__(self, submit: Callable[[dict[str, str]], None], parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle('Add Equipment')
+        self.submit = submit
+        self.widgets = {field: QLineEdit() for field in
+                        ('Equipment ID', 'Equipment Name', 'Model', 'Serial Number', 'Location')}
+        form = QFormLayout(self)
+        for field, widget in self.widgets.items():
+            form.addRow(f"{'*' if field in ('Equipment ID', 'Equipment Name', 'Location') else ''}{field}", widget)
+
+        self.error_message = QLabel()
+        self.error_message.setWordWrap(True)
+        self.error_message.setStyleSheet('color: #b42318; font-weight: bold;')
+        self.error_message.hide()
+        form.addRow(self.error_message)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+
+    def values(self) -> dict[str, str]:
+        return {field: widget.text() for field, widget in self.widgets.items()}
+
+    def _save(self) -> None:
+        values = self.values()
+        required = ('Equipment ID', 'Equipment Name', 'Location')
+        if any(not values[field].strip() for field in required):
+            message = 'Equipment ID, equipment name, and location are required.'
+            self.show_error(message)
+            self.error_reported.emit(message)
+            return
+        try:
+            self.submit(values)
+        except Exception as error:
+            self.show_error(str(error))
+            self.error_reported.emit(str(error))
+            return
         self.accept()
 
     def show_error(self, message: str) -> None:

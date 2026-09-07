@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEd
 
 from .constants import TYPES
 from .dashboard import Dashboard
-from .dialogs import MaintenanceDialog, RecordDialog
+from .dialogs import EquipmentDialog, MaintenanceDialog, RecordDialog
 from .repository import InventoryRepository
 from .table import RecordTable
 
@@ -83,7 +83,8 @@ class InventoryWindow(QMainWindow):
         title = QLabel('ANMA\nInventory Management')
         title.setStyleSheet('font-size: 22px; font-weight: bold;')
         layout.addWidget(title)
-        for label, handler in (('Add', self.add_purchase), ('Outflow', self.add_outflow), ('Export to Excel', self.export), ('Delete Entry', self.delete_selected)):
+        for label, handler in (('Add', self.add_purchase), ('Outflow', self.add_outflow), ('Add Equipment', self.add_equipment),
+                       ('Export to Excel', self.export), ('Delete Entry', self.delete_selected)):
             button = QPushButton(label)
             button.clicked.connect(handler)
             layout.addWidget(button)
@@ -122,6 +123,11 @@ class InventoryWindow(QMainWindow):
         dialog = MaintenanceDialog(self.repository.add_maintenance, parent=self)
         dialog.error_reported.connect(self.show_error)
         self.run_dialog_operation(dialog, success='Outflow recorded.')
+
+    def add_equipment(self) -> None:
+        dialog = EquipmentDialog(self.repository.add_equipment, parent=self)
+        dialog.error_reported.connect(self.show_error)
+        self.run_dialog_operation(dialog, success='Equipment added.')
 
     def update_field(self, table_key: str, record_id: int, field: str, value: str) -> None:
         self.run_operation(self.repository.update_field, table_key, record_id, field, value, success='Record updated.')

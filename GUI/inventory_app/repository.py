@@ -229,6 +229,20 @@ class InventoryRepository:
                  unit_price, shipping, total, values['Received Date'].strip(), values['Applied By'].strip(), values['Responsible By'].strip()),
             )
 
+    def add_equipment(self, values: dict[str, str]) -> None:
+        required = ('Equipment ID', 'Equipment Name', 'Location')
+        if any(not values.get(field, '').strip() for field in required):
+            raise ValueError('Equipment ID, equipment name, and location are required.')
+        try:
+            with self.connection() as database:
+                database.execute('''INSERT INTO "Equipment List"
+                                   ("Equipment ID", "Equipment Name", Model, "Serial Number", Location)
+                                   VALUES(?, ?, ?, ?, ?)''',
+                                 tuple(values.get(field, '').strip() for field in
+                                       ('Equipment ID', 'Equipment Name', 'Model', 'Serial Number', 'Location')))
+        except sqlite3.IntegrityError as error:
+            raise ValueError(f'Equipment ID already exists: {values["Equipment ID"].strip()}.') from error
+
     def add_maintenance(self, maintenance: dict[str, str], parts: list[dict[str, str]]) -> None:
         quantities: list[int] = []
         for part in parts:
