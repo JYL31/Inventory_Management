@@ -2,19 +2,31 @@
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QDate, QTime, Signal
-from PySide6.QtWidgets import (QComboBox, QDateEdit, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
+from PySide6.QtCore import QDate, QTime, QStringListModel, Qt, Signal
+from PySide6.QtWidgets import (QComboBox, QCompleter, QDateEdit, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
                                QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
                                QPushButton, QScrollArea, QTimeEdit, QVBoxLayout, QWidget)
 
 from .constants import TYPES
 
 
+def set_autocomplete(widget: QLineEdit, values: list[str]) -> None:
+    suggestions = sorted(set(values), key=str.casefold)
+    completer = QCompleter(widget)
+    completer.setModel(QStringListModel(suggestions, completer))
+    completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+    completer.setFilterMode(Qt.MatchFlag.MatchContains)
+    completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+    completer.setMaxVisibleItems(5)
+    widget.setCompleter(completer)
+
+
 class RecordDialog(QDialog):
     error_reported = Signal(str)
 
     def __init__(self, title: str, fields: list[str], description_field: bool = False,
-                 submit: Callable[[dict[str, str]], None] | None = None, parent=None) -> None:
+                 submit: Callable[[dict[str, str]], None] | None = None, parent=None,
+                 autocomplete_provider: Callable[[str], list[str]] | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(title)
         self.submit = submit
@@ -33,6 +45,8 @@ class RecordDialog(QDialog):
                 widget.setDisplayFormat('yyyy-MM-dd')
             else:
                 widget = QLineEdit()
+                if autocomplete_provider and field in ('Name', 'Specification'):
+                    set_autocomplete(widget, autocomplete_provider('Part Name' if field == 'Name' else field))
             self.widgets[field] = widget
             form.addRow(f"{'*' if field in ('Name', 'Quantity') else ''}{field}", widget)
         self.error_message = QLabel()
@@ -127,10 +141,12 @@ class EquipmentDialog(QDialog):
 class MaintenanceDialog(QDialog):
     error_reported = Signal(str)
 
-    def __init__(self, submit: Callable[[dict[str, str], list[dict[str, str]]], None], parent=None) -> None:
+    def __init__(self, submit: Callable[[dict[str, str], list[dict[str, str]]], None], parent=None,
+                 autocomplete_provider: Callable[[str], list[str]] | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle('Record Maintenance')
         self.submit = submit
+        self.autocomplete_provider = autocomplete_provider
         self.part_rows: list[dict[str, QLineEdit | QComboBox]] = []
         layout = QVBoxLayout(self)
 
@@ -148,6 +164,8 @@ class MaintenanceDialog(QDialog):
                 widget.setDisplayFormat('HH:mm')
             else:
                 widget = QPlainTextEdit() if field == 'Job Description' else QLineEdit()
+                if autocomplete_provider and field in ('Equipment ID', 'Equipment Name'):
+                    set_autocomplete(widget, autocomplete_provider(field))
             if isinstance(widget, QPlainTextEdit):
                 widget.setFixedHeight(65)
             self.maintenance_widgets[field] = widget
@@ -204,6 +222,9 @@ class MaintenanceDialog(QDialog):
             'Part Name': QLineEdit(), 'Specification': QLineEdit(),
             'Type': QComboBox(), 'Quantity': QLineEdit(),
         }
+        if hasattr(self, 'autocomplete_provider') and self.autocomplete_provider:
+            for field in ('Part Name', 'Specification'):
+                set_autocomplete(widgets[field], self.autocomplete_provider(field))
         widgets['Type'].addItems(('Select a Type', *TYPES))
         for column, field in enumerate(('Part Name', 'Specification', 'Type', 'Quantity')):
             self.parts_grid.addWidget(widgets[field], row, column)

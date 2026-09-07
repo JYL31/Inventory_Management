@@ -149,6 +149,31 @@ class InventoryRepository:
         with self.connection() as database:
             return database.execute(f'SELECT * FROM "{table_name}"{where}', values).fetchall()
 
+    def autocomplete_values(self, field: str) -> list[str]:
+        sources = {
+            'Part Name': (('Inventory', 'Name'),),
+            'Specification': (('Inventory', 'Specification'),),
+            'Equipment ID': (('Equipment List', 'Equipment ID'),),
+            'Equipment Name': (('Equipment List', 'Equipment Name'),),
+            'Search': (
+                ('Inventory', 'Name'),
+                ('Inventory', 'Specification'),
+                ('Equipment List', 'Equipment ID'),
+                ('Equipment List', 'Equipment Name'),
+            ),
+        }
+        selected_sources = sources.get(field, ())
+        if not selected_sources:
+            return []
+        selects = [f'SELECT "{column}" AS value FROM "{table}"' for table, column in selected_sources]
+        query = (
+            'SELECT DISTINCT value FROM (' + ' UNION ALL '.join(selects) + ') '
+            'WHERE value IS NOT NULL AND TRIM(value) <> "" '
+            'ORDER BY value COLLATE NOCASE'
+        )
+        with self.connection() as database:
+            return [str(row[0]) for row in database.execute(query).fetchall()]
+
     def dashboard_data(self) -> dict[str, list[tuple] | int]:
         """Return the live, action-oriented information shown on the home dashboard."""
         with self.connection() as database:

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEd
 
 from .constants import TYPES
 from .dashboard import Dashboard
-from .dialogs import EquipmentDialog, MaintenanceDialog, RecordDialog
+from .dialogs import EquipmentDialog, MaintenanceDialog, RecordDialog, set_autocomplete
 from .repository import InventoryRepository
 from .table import RecordTable
 
@@ -59,6 +59,7 @@ class InventoryWindow(QMainWindow):
         row = QHBoxLayout()
         self.search_text = QLineEdit()
         self.search_text.setPlaceholderText('Search Equipment ID, Equipment Name, or Maintenance ID')
+        set_autocomplete(self.search_text, self.repository.autocomplete_values('Search'))
         self.search_text.returnPressed.connect(self.refresh_tables)
         row.addWidget(self.search_text, 1)
         self.stock = QComboBox()
@@ -96,6 +97,7 @@ class InventoryWindow(QMainWindow):
 
     def refresh_tables(self) -> None:
         try:
+            set_autocomplete(self.search_text, self.repository.autocomplete_values('Search'))
             self.dashboard.refresh(self.repository.dashboard_data())
             for key, table in self.tables.items():
                 table.set_records(self.repository.records(key, self.search_text.text().strip(), self.current_type(), self.stock.currentText()))
@@ -115,12 +117,14 @@ class InventoryWindow(QMainWindow):
 
     def add_purchase(self) -> None:
         fields = ['Name', 'Specification', 'Type', 'Usage', 'Supplier', 'Quantity', 'Unit Price', 'Shipping', 'Received Date', 'Applied By', 'Responsible By']
-        dialog = RecordDialog('Add Purchase', fields, submit=self.repository.add_purchase, parent=self)
+        dialog = RecordDialog('Add Purchase', fields, submit=self.repository.add_purchase, parent=self,
+                      autocomplete_provider=self.repository.autocomplete_values)
         dialog.error_reported.connect(self.show_error)
         self.run_dialog_operation(dialog, success='Purchase recorded.')
 
     def add_outflow(self) -> None:
-        dialog = MaintenanceDialog(self.repository.add_maintenance, parent=self)
+        dialog = MaintenanceDialog(self.repository.add_maintenance, parent=self,
+                       autocomplete_provider=self.repository.autocomplete_values)
         dialog.error_reported.connect(self.show_error)
         self.run_dialog_operation(dialog, success='Outflow recorded.')
 
