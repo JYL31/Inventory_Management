@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QAbstractItemView, QFrame, QGridLayout, QHBoxLayout, QLabel,
-                               QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+                               QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 
 class MetricCard(QFrame):
@@ -44,10 +44,6 @@ class Dashboard(QWidget):
         title_box.addWidget(subtitle)
         heading.addLayout(title_box)
         heading.addStretch()
-        for label, callback in (('Record purchase', add_purchase), ('Record outflow', add_outflow), ('View inventory', show_inventory)):
-            button = QPushButton(label)
-            button.clicked.connect(callback)
-            heading.addWidget(button)
         layout.addLayout(heading)
 
         metrics = QGridLayout()
