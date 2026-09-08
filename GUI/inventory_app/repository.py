@@ -174,6 +174,14 @@ class InventoryRepository:
         with self.connection() as database:
             return [str(row[0]) for row in database.execute(query).fetchall()]
 
+    def equipment_name(self, equipment_id: str) -> str | None:
+        with self.connection() as database:
+            row = database.execute(
+                'SELECT "Equipment Name" FROM "Equipment List" WHERE "Equipment ID"=? COLLATE NOCASE',
+                (equipment_id.strip(),),
+            ).fetchone()
+        return str(row[0]) if row else None
+
     def dashboard_data(self) -> dict[str, list[tuple] | int]:
         """Return the live, action-oriented information shown on the home dashboard."""
         with self.connection() as database:

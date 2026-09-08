@@ -124,7 +124,8 @@ class InventoryWindow(QMainWindow):
 
     def add_outflow(self) -> None:
         dialog = MaintenanceDialog(self.repository.add_maintenance, parent=self,
-                       autocomplete_provider=self.repository.autocomplete_values)
+                       autocomplete_provider=self.repository.autocomplete_values,
+                       equipment_name_provider=self.repository.equipment_name)
         dialog.error_reported.connect(self.show_error)
         self.run_dialog_operation(dialog, success='Outflow recorded.')
 

@@ -142,11 +142,13 @@ class MaintenanceDialog(QDialog):
     error_reported = Signal(str)
 
     def __init__(self, submit: Callable[[dict[str, str], list[dict[str, str]]], None], parent=None,
-                 autocomplete_provider: Callable[[str], list[str]] | None = None) -> None:
+                 autocomplete_provider: Callable[[str], list[str]] | None = None,
+                 equipment_name_provider: Callable[[str], str | None] | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle('Record Maintenance')
         self.submit = submit
         self.autocomplete_provider = autocomplete_provider
+        self.equipment_name_provider = equipment_name_provider
         self.part_rows: list[dict[str, QLineEdit | QComboBox]] = []
         layout = QVBoxLayout(self)
 
@@ -170,6 +172,8 @@ class MaintenanceDialog(QDialog):
                 widget.setFixedHeight(65)
             self.maintenance_widgets[field] = widget
             maintenance_form.addRow(field, widget)
+        if self.equipment_name_provider:
+            self.maintenance_widgets['Equipment ID'].textChanged.connect(self._update_equipment_name)
         self.reference_files = QPlainTextEdit()
         self.reference_files.setFixedHeight(65)
         self.reference_files.setReadOnly(True)
@@ -210,6 +214,11 @@ class MaintenanceDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
         self.add_part()
+
+    def _update_equipment_name(self, equipment_id: str) -> None:
+        equipment_name = self.equipment_name_provider(equipment_id.strip())
+        if equipment_name:
+            self.maintenance_widgets['Equipment Name'].setText(equipment_name)
 
     def _select_reference_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(self, 'Select Reference Files')
