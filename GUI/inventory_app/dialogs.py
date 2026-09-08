@@ -256,6 +256,13 @@ class MaintenanceDialog(QDialog):
         if any(not maintenance[field].strip() for field in required):
             self.show_error('Complete all maintenance fields.')
             return
+        start_date = self.maintenance_widgets['Start Date'].date()
+        finish_date = self.maintenance_widgets['Finish Date'].date()
+        start_time = self.maintenance_widgets['Start Time'].time()
+        finish_time = self.maintenance_widgets['Finish Time'].time()
+        if finish_date < start_date or (finish_date == start_date and finish_time < start_time):
+            self.show_error('Finish time cannot be before start time.')
+            return
         parts = [part for part in parts
                  if any(part[field].strip() for field in ('Part Name', 'Specification', 'Quantity'))]
         if not parts or any(not part['Part Name'].strip() or not part['Quantity'].strip() for part in parts):

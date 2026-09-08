@@ -84,7 +84,7 @@ class InventoryWindow(QMainWindow):
         title = QLabel('ANMA\nInventory Management')
         title.setStyleSheet('font-size: 22px; font-weight: bold;')
         layout.addWidget(title)
-        for label, handler in (('Add', self.add_purchase), ('Outflow', self.add_outflow), ('Add Equipment', self.add_equipment),
+        for label, handler in (('Add Purchase', self.add_purchase), ('Record Maintenance', self.add_outflow), ('Add Equipment', self.add_equipment),
                        ('Export to Excel', self.export), ('Delete Entry', self.delete_selected)):
             button = QPushButton(label)
             button.clicked.connect(handler)
